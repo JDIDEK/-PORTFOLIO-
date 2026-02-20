@@ -13,6 +13,40 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+function configureVideoPlayback(video: HTMLVideoElement, fallbackSources: string[] = []): void {
+  const declaredSrc = video.getAttribute('src');
+  const sources = [declaredSrc, ...fallbackSources].filter((src): src is string => Boolean(src));
+  const tried = new Set<string>();
+  let sourceIndex = 0;
+
+  const loadAndPlay = (src: string): void => {
+    if (video.getAttribute('src') !== src) {
+      video.src = src;
+      video.load();
+    }
+    video.play().catch(() => {});
+  };
+
+  const tryNextSource = (): void => {
+    while (sourceIndex < sources.length) {
+      const next = sources[sourceIndex++];
+      if (tried.has(next)) continue;
+      tried.add(next);
+      loadAndPlay(next);
+      return;
+    }
+  };
+
+  video.addEventListener('error', tryNextSource);
+  video.addEventListener('stalled', () => {
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      tryNextSource();
+    }
+  });
+
+  tryNextSource();
+}
+
 // --------------------------------------------------------
 // 2. CHARGEMENT DES TEXTURES ET VIDÉOS
 // --------------------------------------------------------
@@ -24,12 +58,15 @@ tMetalNormal.wrapS = THREE.RepeatWrapping; tMetalNormal.wrapT = THREE.RepeatWrap
 tMetalRoughness.wrapS = THREE.RepeatWrapping; tMetalRoughness.wrapT = THREE.RepeatWrapping;
 
 const rainVideoEl = document.querySelector<HTMLVideoElement>('#rain-video')!;
-rainVideoEl.play().catch(() => {}); 
+configureVideoPlayback(rainVideoEl, ['/assets/webgl/texture/tNormal-Rain812d.mp4']);
 const tNormalRain = new THREE.VideoTexture(rainVideoEl);
 tNormalRain.wrapS = THREE.RepeatWrapping; tNormalRain.wrapT = THREE.RepeatWrapping;
 
 const bgVideoEl1 = document.querySelector<HTMLVideoElement>('#bg-video-1')!;
-bgVideoEl1.play().catch(() => {}); 
+configureVideoPlayback(bgVideoEl1, [
+  '/assets/webgl/texture/tNormal-Rain812d.mp4',
+  '/assets/webgl/texture/tNormal-Rain.mp4'
+]);
 const tVideo1 = new THREE.VideoTexture(bgVideoEl1);
 tVideo1.wrapS = THREE.MirroredRepeatWrapping; tVideo1.wrapT = THREE.MirroredRepeatWrapping;
 
@@ -189,7 +226,75 @@ letters.forEach(letter => {
 });
 
 // --------------------------------------------------------
-// 7. REDIMENSIONNEMENT
+// 7. EFFET GLITCH SUR LES LABELS UI
+// --------------------------------------------------------
+const glitchLabels = document.querySelectorAll<HTMLElement>('.label-fx');
+
+function setGlitchLabelText(label: HTMLElement, text: string): void {
+  label.setAttribute('aria-label', text);
+  label.textContent = '';
+
+  for (const char of text) {
+    const span = document.createElement('span');
+    span.className = 't';
+    span.textContent = char === ' ' ? '\u00A0' : char;
+    label.appendChild(span);
+  }
+}
+
+glitchLabels.forEach((label) => {
+  const text = (label.textContent ?? '').trim();
+  setGlitchLabelText(label, text);
+});
+
+// --------------------------------------------------------
+// 8. AUDIO UI (SOUND TOGGLE + HOVER)
+// --------------------------------------------------------
+const hoverSoundSrc = '/assets/sounds/hover.mp3';
+let isSoundOn = false;
+let isAudioUnlocked = false;
+
+const unlockAudio = (): void => {
+  if (isAudioUnlocked) return;
+  const unlockProbe = new Audio(hoverSoundSrc);
+  unlockProbe.volume = 0;
+  unlockProbe.play()
+    .then(() => {
+      unlockProbe.pause();
+      unlockProbe.currentTime = 0;
+      isAudioUnlocked = true;
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    })
+    .catch(() => {});
+};
+
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('keydown', unlockAudio);
+
+const playHoverSound = (): void => {
+  if (!isSoundOn || !isAudioUnlocked) return;
+  const hoverSound = new Audio(hoverSoundSrc);
+  hoverSound.volume = 0.5;
+  hoverSound.play().catch(() => {});
+};
+
+const hoverTargets = document.querySelectorAll<HTMLElement>('.js-audio-hover');
+hoverTargets.forEach((target) => {
+  target.addEventListener('mouseenter', playHoverSound);
+});
+
+const soundToggleBtn = document.querySelector<HTMLElement>('#sound-toggle-btn');
+if (soundToggleBtn) {
+  soundToggleBtn.addEventListener('click', () => {
+    unlockAudio();
+    isSoundOn = !isSoundOn;
+    setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
+  });
+}
+
+// --------------------------------------------------------
+// 9. REDIMENSIONNEMENT
 // --------------------------------------------------------
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
