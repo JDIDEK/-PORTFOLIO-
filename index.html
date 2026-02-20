@@ -11,6 +11,8 @@
         margin: 0; padding: 0;
         background-color: #000 !important; color: white !important;
         overflow: hidden; /* PLUS DE SCROLL */
+        min-height: 100svh;
+        overscroll-behavior: none;
         font-family: 'Roboto Flex', sans-serif;
         font-weight: 200;
       }
@@ -18,32 +20,71 @@
       a { color: white; text-decoration: none; }
       
       #webgl-canvas {
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh;
         z-index: 0; pointer-events: none; 
+      }
+      .webgl-source-video {
+        position: fixed;
+        left: -9999px;
+        top: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
       }
 
       /* L'INTERFACE FIXE (UI OVERLAY) */
       .ui-overlay {
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh;
         z-index: 10; 
         pointer-events: none; /* Laisse passer la souris pour l'essuie-glace ! */
       }
       .ui-overlay a, .ui-overlay button, .ui-overlay .logo { pointer-events: auto; } /* Rend les liens cliquables */
 
+      /* --- LE NOUVEAU LOGO TERMINAL --- */
       .logo {
         position: fixed;
         top: 64px;
         left: 64px;
-        width: 24px;
-        height: 24px;
-        opacity: 0.75;
+        /* On enlève width et height fixes pour laisser le texte respirer */
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        font-family: Consolas, 'Courier New', monospace;
+        font-size: 18px;
+        font-weight: bold;
+        color: #fff;
+        text-decoration: none;
+        opacity: 0.85;
         mix-blend-mode: plus-lighter;
+        transition: opacity 0.3s ease, text-shadow 0.3s ease;
+        z-index: 20;
       }
-      .logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75));
+      
+      .logo:hover {
+        opacity: 1;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      }
+
+      .logo-bracket {
+        color: #ff0000; /* Le même rouge agressif que ton terminal */
+        font-weight: 300;
+        opacity: 0.7;
+      }
+      .logo-bracket:first-child {
+        margin-left: -1px;
+      }
+
+      .logo-letter {
+        /* On réutilise ton effet de bourdonnement néon ! */
+        animation: neon-buzz 4s infinite alternate;
+      }
+
+      .logo-cursor {
+        color: #ff0000;
+        /* On réutilise l'animation de clignotement de ton terminal */
+        animation: terminal-blink 1s step-end infinite;
+        margin-left: 1px;
       }
       .side-nav { position: fixed; top: 132px; left: 64px; mix-blend-mode: plus-lighter; }
       .side-nav ul { list-style: none; padding: 0; margin: 0; }
@@ -164,13 +205,13 @@
 
       /* LE CONTENU CENTRAL */
       .content { 
-        position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+        position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh;
         z-index: 5; 
         display: flex; align-items: center; justify-content: center;
         pointer-events: none; /* TRÈS IMPORTANT: laisse l'essuie glace marcher au milieu */
       }
       
-      .hero { text-align: center; }
+      .hero { text-align: center; transform: translateY(0); }
 
       /* Organisation des SVG */
       .hello-world {
@@ -250,7 +291,7 @@
 
       .hero-linux {
         display: inline-block;
-        margin-top: 12px;
+        margin: 12px 0 0;
         font-family: Consolas, 'Courier New', monospace;
         font-size: 12px;
         letter-spacing: 0.15em;
@@ -345,25 +386,45 @@
       .t-warn { color: #fce94f; }
 
       @media (max-width: 768px) {
-        .logo { top: 32px; left: 32px; width: 20px; height: 20px; }
+        .logo { top: 31px; left: 32px; width: 20px; height: 20px; }
         .side-nav { top: 88px; left: 32px; }
+        .side-nav li:first-child { margin-top: -14.4px; }
         .side-nav a { font-size: 10px; letter-spacing: 1px; padding: 10px 0 3px; margin-bottom: 8px; }
         .bottom-left { left: 32px; bottom: 32px; }
         .config-btn { font-size: 10px; letter-spacing: 1px; padding: 8px 0; }
-        .bottom-right { right: 32px; bottom: 120px; }
+        .bottom-right { right: 12.5vw; bottom: calc(min(126px, 19.3846svh) - 8px); }
         .line-link { font-size: 10px; letter-spacing: 1px; padding: 8px 0 3px; margin-bottom: 8px; }
         .copyright { right: 32px; bottom: 30px; font-size: 8px; letter-spacing: 0.64px; }
+        .hero { transform: translateY(27px); }
+        .hello-world { gap: clamp(30px, 7.8vw, 52px); margin-bottom: clamp(20px, 3.2vh, 34px); }
+        .word { gap: clamp(14px, 3.8vw, 22px); }
+        .svg-letter { height: clamp(14.5px, 2.2vh, 20px); }
+        .hero-linux { margin-top: 16px; font-size: 10px; letter-spacing: 0.12em; }
+      }
+
+      @media (max-width: 480px) {
+        .side-nav { top: 79px; }
+        .side-nav a { font-size: 10px; letter-spacing: 1px; font-weight: 300; }
+        .bottom-right { right: 32px; }
+        .hero { transform: translateY(22.8px); }
+        .hello-world { gap: clamp(28px, 8.5vw, 38px); margin-bottom: clamp(16px, 2.4vh, 24px); }
+        .word { gap: clamp(15px, 4.8vw, 20px); }
+        .svg-letter { height: 14.5px; }
+        .hero-linux { margin-top: 14px; font-size: 9px; letter-spacing: 0.1em; }
       }
     </style>
   </head>
   <body>
-    <video id="rain-video" src="/assets/webgl/texture/tNormal-Rain.mp4" loop muted autoplay playsinline style="display: none;"></video>
-    <video id="bg-video-1" src="/assets/video/bgVideoI.mp4" loop muted autoplay playsinline style="display: none;"></video>
+    <video id="rain-video" class="webgl-source-video" src="/assets/webgl/texture/tNormal-Rain.mp4" loop muted autoplay playsinline></video>
+    <video id="bg-video-1" class="webgl-source-video" src="/assets/video/bgVideoI.mp4" loop muted autoplay playsinline></video>
     <canvas id="webgl-canvas"></canvas>
 
     <div class="ui-overlay">
       <a href="/" class="logo" aria-label="Home">
-        <img src="/assets/img/logo.svg" alt="SHOYA KAJITA" width="24" height="24">
+        <span class="logo-bracket">[</span>
+        <span class="logo-letter">J</span>
+        <span class="logo-cursor">_</span>
+        <span class="logo-bracket">]</span>
       </a>
       <nav class="side-nav">
         <ul>

@@ -6,25 +6,43 @@ import * as THREE from 'three';
 const canvas = document.querySelector<HTMLCanvasElement>('#webgl-canvas')!;
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const isTouchDevice =
+  window.matchMedia('(hover: none), (pointer: coarse)').matches ||
+  'ontouchstart' in window;
 
 const renderer = new THREE.WebGLRenderer({ 
-  canvas: canvas, antialias: false, alpha: true 
+  canvas: canvas,
+  antialias: false,
+  alpha: true,
+  powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouchDevice ? 1.5 : 2));
 
 function configureVideoPlayback(video: HTMLVideoElement, fallbackSources: string[] = []): void {
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.setAttribute('muted', '');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', 'true');
+  video.setAttribute('autoplay', '');
+
   const declaredSrc = video.getAttribute('src');
   const sources = [declaredSrc, ...fallbackSources].filter((src): src is string => Boolean(src));
   const tried = new Set<string>();
   let sourceIndex = 0;
+  const tryPlay = (): void => {
+    video.play().catch(() => {});
+  };
 
   const loadAndPlay = (src: string): void => {
     if (video.getAttribute('src') !== src) {
       video.src = src;
       video.load();
     }
-    video.play().catch(() => {});
+    tryPlay();
   };
 
   const tryNextSource = (): void => {
@@ -43,6 +61,7 @@ function configureVideoPlayback(video: HTMLVideoElement, fallbackSources: string
       tryNextSource();
     }
   });
+  video.addEventListener('canplay', tryPlay);
 
   tryNextSource();
 }
@@ -70,6 +89,18 @@ configureVideoPlayback(bgVideoEl1, [
 const tVideo1 = new THREE.VideoTexture(bgVideoEl1);
 tVideo1.wrapS = THREE.MirroredRepeatWrapping; tVideo1.wrapT = THREE.MirroredRepeatWrapping;
 
+const resumeAllVideos = (): void => {
+  rainVideoEl.play().catch(() => {});
+  bgVideoEl1.play().catch(() => {});
+};
+
+window.addEventListener('pointerdown', resumeAllVideos, { passive: true });
+window.addEventListener('touchstart', resumeAllVideos, { passive: true });
+window.addEventListener('keydown', resumeAllVideos);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) resumeAllVideos();
+});
+
 // --------------------------------------------------------
 // 3. LE MASQUE INTERACTIF (L'ESSUIE-GLACE)
 // --------------------------------------------------------
@@ -82,11 +113,27 @@ maskCtx.fillStyle = 'black';
 maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 const tFluid = new THREE.CanvasTexture(maskCanvas);
 
-const mouse = new THREE.Vector2(-1000, -1000);
-window.addEventListener('mousemove', (event) => {
-  mouse.x = event.clientX;
-  mouse.y = event.clientY;
-});
+const mouse = new THREE.Vector2(window.innerWidth * 0.5, window.innerHeight * 0.55);
+const setPointer = (x: number, y: number): void => {
+  mouse.x = x;
+  mouse.y = y;
+};
+
+window.addEventListener('pointermove', (event) => {
+  setPointer(event.clientX, event.clientY);
+}, { passive: true });
+
+window.addEventListener('touchstart', (event) => {
+  const touch = event.touches[0];
+  if (!touch) return;
+  setPointer(touch.clientX, touch.clientY);
+}, { passive: true });
+
+window.addEventListener('touchmove', (event) => {
+  const touch = event.touches[0];
+  if (!touch) return;
+  setPointer(touch.clientX, touch.clientY);
+}, { passive: true });
 
 // --------------------------------------------------------
 // 4. LE SHADER MATERIAL
@@ -100,8 +147,23 @@ const uniforms = {
   tMetalRoughness: { value: tMetalRoughness },
   tFluid: { value: tFluid },
   uEnableCamera: { value: 0.0 }, 
-  uBloom: { value: 0.5 }
+  uBloom: { value: 0.5 },
+  uMobileCropByHeight: { value: 0.0 }
 };
+
+const updateMobileCropByHeight = (): void => {
+  uniforms.uMobileCropByHeight.value =
+    isTouchDevice && window.innerHeight >= window.innerWidth ? 1.0 : 0.0;
+};
+updateMobileCropByHeight();
+
+const syncVideoSizeUniform = (): void => {
+  const videoWidth = bgVideoEl1.videoWidth || 1920;
+  const videoHeight = bgVideoEl1.videoHeight || 1080;
+  uniforms.uVideoSize.value.set(videoWidth, videoHeight);
+};
+bgVideoEl1.addEventListener('loadedmetadata', syncVideoSizeUniform);
+syncVideoSizeUniform();
 
 const material = new THREE.ShaderMaterial({
   uniforms: uniforms,
@@ -119,11 +181,17 @@ const material = new THREE.ShaderMaterial({
     uniform sampler2D tFluid;
     uniform float uEnableCamera;
     uniform float uBloom;
+    uniform float uMobileCropByHeight;
     varying vec2 vUv;
 
     vec2 optimizationTextureUv(vec2 _uv, float pa, float ta) {
         vec2 ratio = vec2(min(pa/ta, 1.0), (min((1.0/pa)/(1.0/ta), 1.0)));
         return vec2(((_uv.x-0.5)*ratio.x+0.5), ((_uv.y-0.5)*ratio.y+0.5));
+    }
+
+    vec2 optimizationTextureUvMobile(vec2 _uv, float pa, float ta) {
+        float ratioX = min(pa/ta, 1.0);
+        return vec2(((_uv.x-0.5)*ratioX+0.5), _uv.y);
     }
 
     void main(void) {
@@ -132,7 +200,9 @@ const material = new THREE.ShaderMaterial({
         vec2 offsetNormalRainUv = vec2(0.1);
         vec2 normalRainUv = vUv;
         
-        normalRainUv = optimizationTextureUv(normalRainUv, aspect, uVideoSize.x/uVideoSize.y);
+        vec2 normalRainUvCover = optimizationTextureUv(normalRainUv, aspect, uVideoSize.x/uVideoSize.y);
+        vec2 normalRainUvMobile = optimizationTextureUvMobile(normalRainUv, aspect, uVideoSize.x/uVideoSize.y);
+        normalRainUv = mix(normalRainUvCover, normalRainUvMobile, uMobileCropByHeight);
         
         vec4 normalRain = texture2D(tNormalRain, normalRainUv);
         normalRain.r = texture2D(tNormalRain, normalRainUv).r;
@@ -163,7 +233,9 @@ const material = new THREE.ShaderMaterial({
         
         vec2 uv = vUv;
         uv.x = mix(uv.x, 1.0-uv.x, uEnableCamera);
-        uv = optimizationTextureUv(uv, aspect, uVideoSize.x/uVideoSize.y);
+        vec2 optimizedUvCover = optimizationTextureUv(uv, aspect, uVideoSize.x/uVideoSize.y);
+        vec2 optimizedUvMobile = optimizationTextureUvMobile(uv, aspect, uVideoSize.x/uVideoSize.y);
+        uv = mix(optimizedUvCover, optimizedUvMobile, uMobileCropByHeight);
         
         vec2 uv1 = uv;
         uv1 = uv1 * normalMetal.xy;
@@ -192,11 +264,14 @@ scene.add(mesh);
 // --------------------------------------------------------
 // 5. BOUCLE D'ANIMATION
 // --------------------------------------------------------
+let brushSize = isTouchDevice
+  ? Math.max(90, Math.min(window.innerWidth, window.innerHeight) * 0.18)
+  : 150;
+
 function raf() {
   maskCtx.fillStyle = 'rgba(0, 0, 0, 0.03)'; 
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
-  const brushSize = 150;
   const gradient = maskCtx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, brushSize);
   gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
   gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
@@ -285,9 +360,18 @@ if (soundToggleBtn) {
 // --------------------------------------------------------
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouchDevice ? 1.5 : 2));
   uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+  updateMobileCropByHeight();
   maskCanvas.width = window.innerWidth;
   maskCanvas.height = window.innerHeight;
+  brushSize = isTouchDevice
+    ? Math.max(90, Math.min(window.innerWidth, window.innerHeight) * 0.18)
+    : 150;
+
+  if (mouse.x > window.innerWidth || mouse.y > window.innerHeight || mouse.x < 0 || mouse.y < 0) {
+    setPointer(window.innerWidth * 0.5, window.innerHeight * 0.55);
+  }
 });
 
 // --------------------------------------------------------
