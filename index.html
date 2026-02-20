@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clone Portfolio Shoya Kajita</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400&display=swap');
+
+      body, html {
+        margin: 0; padding: 0;
+        background-color: #000 !important; color: white !important;
+        overflow: hidden; /* PLUS DE SCROLL */
+        font-family: 'Inter', sans-serif;
+        font-weight: 300;
+      }
+      
+      a { color: white; text-decoration: none; }
+      
+      #webgl-canvas {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: 0; pointer-events: none; 
+      }
+
+      /* L'INTERFACE FIXE (UI OVERLAY) */
+      .ui-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: 10; 
+        pointer-events: none; /* Laisse passer la souris pour l'essuie-glace ! */
+      }
+      .ui-overlay a, .ui-overlay .logo { pointer-events: auto; } /* Rend les liens cliquables */
+
+      .logo { position: absolute; top: 40px; left: 40px; font-weight: 400; font-size: 1.2rem; }
+      .side-nav { position: absolute; top: 120px; left: 40px; }
+      .side-nav ul { list-style: none; padding: 0; margin: 0; }
+      .side-nav li { margin-bottom: 25px; font-size: 0.6rem; letter-spacing: 2px; }
+      .side-nav a { opacity: 0.5; transition: opacity 0.3s; }
+      .side-nav a:hover { opacity: 1; }
+      .bottom-left { position: absolute; bottom: 40px; left: 40px; font-size: 0.6rem; opacity: 0.5; line-height: 2; }
+      .bottom-left p { margin: 0; }
+      .bottom-right { position: absolute; bottom: 40px; right: 40px; text-align: right; font-size: 0.6rem; opacity: 0.5; line-height: 2; }
+      .line-link { display: block; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 2px; margin-bottom: 10px; width: fit-content; margin-left: auto; transition: opacity 0.3s;}
+      .line-link:hover { opacity: 1; }
+      .copyright { margin-top: 25px; font-size: 0.55rem; letter-spacing: 1px;}
+
+      /* LE CONTENU CENTRAL */
+      .content { 
+        position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: 5; 
+        display: flex; align-items: center; justify-content: center;
+        pointer-events: none; /* TRÈS IMPORTANT: laisse l'essuie glace marcher au milieu */
+      }
+      
+      .hero { text-align: center; }
+
+      /* Organisation des SVG */
+      .hello-world {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: clamp(40px, 6vw, 120px); /* Espace entre HELLO et WORLD */
+        margin-bottom: 20px;
+        pointer-events: auto; /* Active le hover sur les lettres */
+      }
+      .word {
+        display: flex;
+        gap: clamp(26px, 4vw, 72px); /* Espace entre lettres */
+        align-items: flex-end;
+      }
+      .svg-letter {
+        height: 5vh; /* Ajuste selon la taille de tes SVG */
+        cursor: pointer;
+        transition: transform 0.3s ease;
+        display: block;
+        opacity: 0;
+        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75));
+      }
+
+      @keyframes glitch-fade-1 {
+        0% { opacity: 0; } 8.3% { opacity: .4; } 16.6% { opacity: .2; } 25% { opacity: .7; }
+        33.3% { opacity: .1; } 41.6% { opacity: .8; } 50% { opacity: .3; } 58.3% { opacity: .85; }
+        66.6% { opacity: .5; } 75% { opacity: .9; } 83.3% { opacity: .6; } 91.6% { opacity: .95; } to { opacity: 1; }
+      }
+      @keyframes glitch-fade-2 {
+        0% { opacity: 0; } 8.3% { opacity: .2; } 16.6% { opacity: .6; } 25% { opacity: .1; }
+        33.3% { opacity: .75; } 41.6% { opacity: .3; } 50% { opacity: .9; } 58.3% { opacity: .4; }
+        66.6% { opacity: .95; } 75% { opacity: .2; } 83.3% { opacity: .8; } 91.6% { opacity: .6; } to { opacity: 1; }
+      }
+      @keyframes glitch-fade-3 {
+        0% { opacity: 0; } 8.3% { opacity: .1; } 16.6% { opacity: .5; } 25% { opacity: .25; }
+        33.3% { opacity: .9; } 41.6% { opacity: .35; } 50% { opacity: .75; } 58.3% { opacity: .3; }
+        66.6% { opacity: .85; } 75% { opacity: .4; } 83.3% { opacity: .95; } 91.6% { opacity: .6; } to { opacity: 1; }
+      }
+      @keyframes glitch-fade-5 {
+        0% { opacity: 0; } 8.3% { opacity: .5; } 16.6% { opacity: .1; } 25% { opacity: .6; }
+        33.3% { opacity: .25; } 41.6% { opacity: .7; } 50% { opacity: .15; } 58.3% { opacity: .8; }
+        66.6% { opacity: .35; } 75% { opacity: .9; } 83.3% { opacity: .45; } 91.6% { opacity: .95; } to { opacity: 1; }
+      }
+      @keyframes glitch-fade-6 {
+        0% { opacity: 0; } 8.3% { opacity: .2; } 16.6% { opacity: .4; } 25% { opacity: .1; }
+        33.3% { opacity: .7; } 41.6% { opacity: .3; } 50% { opacity: .85; } 58.3% { opacity: .25; }
+        66.6% { opacity: .95; } 75% { opacity: .5; } 83.3% { opacity: .75; } 91.6% { opacity: .6; } to { opacity: 1; }
+      }
+      @keyframes glitch-fade-7 {
+        0% { opacity: 0; } 8.3% { opacity: .3; } 16.6% { opacity: .15; } 25% { opacity: .6; }
+        33.3% { opacity: .1; } 41.6% { opacity: .75; } 50% { opacity: .2; } 58.3% { opacity: .85; }
+        66.6% { opacity: .35; } 75% { opacity: .95; } 83.3% { opacity: .5; } 91.6% { opacity: .9; } to { opacity: 1; }
+      }
+      @keyframes glitch-fade-8 {
+        0% { opacity: 0; } 8.3% { opacity: .4; } 16.6% { opacity: .2; } 25% { opacity: .9; }
+        33.3% { opacity: .3; } 41.6% { opacity: .7; } 50% { opacity: .15; } 58.3% { opacity: .8; }
+        66.6% { opacity: .25; } 75% { opacity: .85; } 83.3% { opacity: .5; } 91.6% { opacity: .95; } to { opacity: 1; }
+      }
+      @keyframes flicker {
+        0%, 14% { opacity: 1; }
+        14.4% { opacity: 0; }
+        14.8% { opacity: 1; }
+        39% { opacity: 1; }
+        39.3% { opacity: 0; }
+        39.7% { opacity: 1; }
+        72% { opacity: 1; }
+        72.2% { opacity: 0; }
+        72.4% { opacity: 1; }
+        72.6% { opacity: 0; }
+        73% { opacity: 1; }
+        to { opacity: 1; }
+      }
+
+      .svg-letter.h, .svg-letter.d {
+        animation: glitch-fade-1 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 0.9s infinite;
+      }
+      .svg-letter.e {
+        animation: glitch-fade-2 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 1.15s infinite;
+      }
+      .svg-letter.l1 {
+        animation: glitch-fade-3 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 1.4s infinite;
+      }
+      .svg-letter.o1 {
+        animation: glitch-fade-5 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 1.65s infinite;
+      }
+      .svg-letter.w, .svg-letter.l2 {
+        animation: glitch-fade-6 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 1.9s infinite;
+      }
+      .svg-letter.o2 {
+        animation: glitch-fade-7 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 2.15s infinite;
+      }
+      .svg-letter.r, .svg-letter.l3 {
+        animation: glitch-fade-8 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, flicker 3s 2.4s infinite;
+      }
+      
+      .hero-subtitle { font-size: 0.7rem; letter-spacing: 0.6em; margin: 0; margin-left: 0.6em; opacity: 0.8; }
+      .hero-jp { font-size: 0.55rem; letter-spacing: 0.5em; margin-top: 8px; margin-left: 0.5em; opacity: 0.5; }
+    </style>
+  </head>
+  <body>
+    <video id="rain-video" src="/assets/webgl/texture/tNormal-Rain.mp4" loop muted autoplay playsinline style="display: none;"></video>
+    <video id="bg-video-1" src="/assets/videos/bgVideoI.mp4" loop muted autoplay playsinline style="display: none;"></video>
+    
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="ui-overlay">
+      <div class="logo">S</div>
+      <nav class="side-nav">
+        <ul>
+          <li><a href="#">HOME</a></li>
+          <li><a href="#">ABOUT</a></li>
+          <li><a href="#">WORKS</a></li>
+          <li><a href="#">ARTWORK</a></li>
+        </ul>
+      </nav>
+      <div class="bottom-left">
+        <p>Hand: Off</p>
+        <p>Sound: Off</p>
+      </div>
+      <div class="bottom-right">
+        <a href="#" class="line-link">How to Use Hand Mode ( JA )</a>
+        <a href="#" class="line-link">How to Use Hand Mode ( EN )</a>
+        <p class="copyright">©SHOYA KAJITA</p>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="hero">
+        <div class="hello-world">
+          <div class="word">
+            <img src="/letters/home_letter_h_01.svg" data-hover="/letters/home_letter_h_02.svg" alt="H" class="svg-letter h">
+            <img src="/letters/home_letter_e_01.svg" data-hover="/letters/home_letter_e_02.svg" alt="E" class="svg-letter e">
+            <img src="/letters/home_letter_l1_01.svg" data-hover="/letters/home_letter_l1_02.svg" alt="L" class="svg-letter l1">
+            <img src="/letters/home_letter_l2_01.svg" data-hover="/letters/home_letter_l2_02.svg" alt="L" class="svg-letter l2">
+            <img src="/letters/home_letter_o1_01.svg" data-hover="/letters/home_letter_o1_02.svg" alt="O" class="svg-letter o1">
+          </div>
+          <div class="word">
+            <img src="/letters/home_letter_w_01.svg" data-hover="/letters/home_letter_w_02.svg" alt="W" class="svg-letter w">
+            <img src="/letters/home_letter_o2_01.svg" data-hover="/letters/home_letter_o2_02.svg" alt="O" class="svg-letter o2">
+            <img src="/letters/home_letter_r_01.svg" data-hover="/letters/home_letter_r_02.svg" alt="R" class="svg-letter r">
+            <img src="/letters/home_letter_l3_01.svg" data-hover="/letters/home_letter_l3_02.svg" alt="L" class="svg-letter l3">
+            <img src="/letters/home_letter_d_01.svg" data-hover="/letters/home_letter_d_02.svg" alt="D" class="svg-letter d">
+          </div>
+        </div>
+
+        <p class="hero-subtitle">SHOYA KAJITA</p>
+        <p class="hero-jp">カジタ ショウヤ</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
