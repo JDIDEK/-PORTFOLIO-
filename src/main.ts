@@ -214,19 +214,7 @@ function raf() {
 requestAnimationFrame(raf);
 
 // --------------------------------------------------------
-// 6. GESTION DES LETTRES SVG (HOVER)
-// --------------------------------------------------------
-const letters = document.querySelectorAll<HTMLImageElement>('.svg-letter');
-letters.forEach(letter => {
-  const originalSrc = letter.src;
-  const hoverSrc = letter.getAttribute('data-hover')!;
-  
-  letter.addEventListener('mouseenter', () => letter.src = hoverSrc);
-  letter.addEventListener('mouseleave', () => letter.src = originalSrc);
-});
-
-// --------------------------------------------------------
-// 7. EFFET GLITCH SUR LES LABELS UI
+// 6. EFFET GLITCH SUR LES LABELS UI
 // --------------------------------------------------------
 const glitchLabels = document.querySelectorAll<HTMLElement>('.label-fx');
 
@@ -248,7 +236,7 @@ glitchLabels.forEach((label) => {
 });
 
 // --------------------------------------------------------
-// 8. AUDIO UI (SOUND TOGGLE + HOVER)
+// 7. AUDIO UI (SOUND TOGGLE + HOVER)
 // --------------------------------------------------------
 const hoverSoundSrc = '/assets/sounds/hover.mp3';
 let isSoundOn = false;
@@ -294,7 +282,7 @@ if (soundToggleBtn) {
 }
 
 // --------------------------------------------------------
-// 9. REDIMENSIONNEMENT
+// 8. REDIMENSIONNEMENT
 // --------------------------------------------------------
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
