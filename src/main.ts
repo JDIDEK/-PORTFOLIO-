@@ -396,7 +396,7 @@ if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && 
 
   // --- VARIABLES D'AUTOCOMPLÉTION ---
   const knownCommands = ['help', 'ls', 'clear', 'whoami', 'sudo', 'cd', 'cat', 'neofetch', 'rm'];
-  const knownFiles = ['about/', 'works/', 'artwork/', 'contact.txt', 'matrix.sh'];
+  const knownFiles = ['about/', 'works/', 'contact.txt', 'matrix.sh'];
 
   // Ouvre le terminal
   openTermBtn.addEventListener('click', () => {
@@ -522,7 +522,7 @@ if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && 
       
       case 'ls':
         if (extraArgs.length > 0) printLog(`<span class="t-err">ls: cannot access '${extraArgs[0]}': No such file or directory</span>`);
-        else printLog(`<span class="t-blue">about/</span>&nbsp;&nbsp;&nbsp;<span class="t-blue">works/</span>&nbsp;&nbsp;&nbsp;<span class="t-blue">artwork/</span>&nbsp;&nbsp;&nbsp;contact.txt&nbsp;&nbsp;&nbsp;<span class="t-green">matrix.sh*</span>`);
+        else printLog(`<span class="t-blue">about</span>&nbsp;&nbsp;&nbsp;<span class="t-blue">works</span>&nbsp;</span>&nbsp;&nbsp;&nbsp;contact.txt&nbsp;&nbsp;&nbsp;<span class="t-green">matrix.sh*</span>`);
         break;
       
       case 'clear':
@@ -543,7 +543,7 @@ if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && 
         else if (extraArgs.length > 1) printLog(`<span class="t-err">bash: cd: too many arguments</span>`);
         else {
           const target = extraArgs[0].replace(/\/$/, '');
-          if (['about', 'works', 'artwork'].includes(target)) {
+          if (['about', 'works'].includes(target)) {
             printLog(`Navigating to <span class="t-blue">${target}</span>...`);
             setTimeout(() => { closeModal(); }, 800);
           } else {
