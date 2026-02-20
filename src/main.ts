@@ -109,7 +109,6 @@ const material = new THREE.ShaderMaterial({
     varying vec2 vUv;
     void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
   `,
-  // Fragment Shader d'origine simplifié (une seule vidéo de fond)
   fragmentShader: `
     uniform vec2 uResolution;
     uniform vec2 uVideoSize;
@@ -290,3 +289,135 @@ window.addEventListener('resize', () => {
   maskCanvas.width = window.innerWidth;
   maskCanvas.height = window.innerHeight;
 });
+
+// --------------------------------------------------------
+// 9. LOGIQUE DU TERMINAL INTERACTIF (EASTER EGG STRICT)
+// --------------------------------------------------------
+const openTermBtn = document.getElementById('open-terminal');
+const terminalModal = document.getElementById('terminal-modal');
+const closeTermBtn = document.getElementById('close-terminal');
+const termInput = document.getElementById('terminal-input') as HTMLInputElement;
+const termHistory = document.getElementById('terminal-history');
+const termBody = document.getElementById('terminal-body');
+
+if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && termBody) {
+  
+  openTermBtn.addEventListener('click', () => {
+    terminalModal.classList.add('active');
+    setTimeout(() => termInput.focus(), 100); 
+  });
+
+  const closeModal = () => terminalModal.classList.remove('active');
+  closeTermBtn.addEventListener('click', closeModal);
+  terminalModal.addEventListener('click', (e) => {
+    if (e.target === terminalModal) closeModal();
+  });
+
+  termBody.addEventListener('click', () => termInput.focus());
+
+  termInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const cmdText = termInput.value.trim();
+      if (cmdText) executeCommand(cmdText);
+      // On rajoute toujours une ligne vide après l'exécution si on appuie juste sur Entrée
+      else printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span>#</div>`);
+      termInput.value = '';
+    }
+  });
+
+  function printLog(html: string) {
+    const p = document.createElement('div');
+    p.innerHTML = html;
+    termHistory!.appendChild(p);
+    termBody!.scrollTop = termBody!.scrollHeight;
+  }
+
+  function executeCommand(cmdText: string) {
+    printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span># ${cmdText}</div>`);
+    
+    // On sépare intelligemment la commande et ses arguments
+    const args = cmdText.split(/\s+/).filter(Boolean);
+    const cmd = args[0].toLowerCase();
+    const extraArgs = args.slice(1);
+
+    switch (cmd) {
+      case 'help':
+        printLog(`Available commands:
+        <br/>- <span class="t-warn">ls</span> : List directory contents
+        <br/>- <span class="t-warn">cd [dir]</span> : Change directory
+        <br/>- <span class="t-warn">whoami</span> : Print effective user id
+        <br/>- <span class="t-warn">clear</span> : Clear terminal screen
+        <br/>- <span class="t-warn">cat [file]</span> : Concatenate files and print`);
+        break;
+      
+      case 'ls':
+        if (extraArgs.length > 0) {
+          // Erreur Bash exacte
+          printLog(`<span class="t-err">ls: cannot access '${extraArgs[0]}': No such file or directory</span>`);
+        } else {
+          printLog(`<span class="t-blue">about/</span>&nbsp;&nbsp;&nbsp;<span class="t-blue">works/</span>&nbsp;&nbsp;&nbsp;<span class="t-blue">artwork/</span>&nbsp;&nbsp;&nbsp;contact.txt&nbsp;&nbsp;&nbsp;<span class="t-green">matrix.sh*</span>`);
+        }
+        break;
+      
+      case 'clear':
+        termHistory!.innerHTML = '';
+        break;
+      
+      case 'whoami':
+        if (extraArgs.length > 0) {
+          // Erreur Bash exacte
+          printLog(`whoami: extra operand '${extraArgs[0]}'<br/>Try 'whoami --help' for more information.`);
+        } else {
+          printLog('root');
+        }
+        break;
+      
+      case 'sudo':
+        printLog(`<span class="t-err">This incident will be reported.</span>`);
+        break;
+
+      case 'cd':
+        if (extraArgs.length === 0) {
+          // Taper cd seul renvoie généralement à la racine (ici on fait juste un retour chariot)
+          printLog('');
+        } else if (extraArgs.length > 1) {
+          // Erreur Bash exacte si trop d'arguments
+          printLog(`<span class="t-err">bash: cd: too many arguments</span>`);
+        } else {
+          // On supprime le slash final s'il y en a un (ex: "cd works/")
+          const target = extraArgs[0].replace(/\/$/, '').toLowerCase();
+          
+          if (['about', 'works', 'artwork'].includes(target)) {
+            printLog(`Navigating to <span class="t-blue">${target}</span>...`);
+            setTimeout(() => {
+              closeModal();
+              // Logique de navigation ici plus tard
+            }, 800);
+          } else {
+            printLog(`<span class="t-err">bash: cd: ${target}: No such file or directory</span>`);
+          }
+        }
+        break;
+      
+      case 'cat':
+        if (extraArgs.length === 0) {
+          // Erreur cat exacte
+          printLog(`<span class="t-err">cat: missing operand</span><br/>Try 'cat --help' for more information.`);
+        } else {
+          const file = extraArgs[0].toLowerCase();
+          if (file === 'contact.txt') {
+            printLog('Email: root@josselindidek.com<br/>Github: github.com/josselindidek');
+          } else if (file === 'matrix.sh') {
+            printLog(`<span class="t-err">bash: ./matrix.sh: Permission denied.</span>`);
+          } else {
+            printLog(`<span class="t-err">cat: ${file}: No such file or directory</span>`);
+          }
+        }
+        break;
+
+      default:
+        // Erreur de commande inconnue exacte
+        printLog(`<span class="t-err">bash: ${cmd}: command not found</span>`);
+    }
+  }
+}
