@@ -387,12 +387,46 @@ const termHeader = document.querySelector('.terminal-header') as HTMLElement;
 const termWindow = document.querySelector('.terminal-window') as HTMLElement;
 
 if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && termBody && termHeader && termWindow) {
+  const terminalModalEl = terminalModal;
   
   // --- VARIABLES D'HISTORIQUE ET ANIMATIONS ---
   const cmdHistory: string[] = [];
   let historyIndex = -1;
   const terminalIntervals: number[] = [];
   let neofetchCallCount = 0;
+  const asciiFrameUrls = Array.from({ length: 51 }, (_, index) => {
+    return `/assets/frames/frame_${String(index + 1).padStart(3, '0')}.txt`;
+  });
+  let cachedAsciiFrames: string[] | null = null;
+  let asciiFramesLoadingPromise: Promise<string[]> | null = null;
+
+  const loadAsciiFrames = async (): Promise<string[]> => {
+    if (cachedAsciiFrames) return cachedAsciiFrames;
+    if (asciiFramesLoadingPromise) return asciiFramesLoadingPromise;
+
+    asciiFramesLoadingPromise = Promise.all(
+      asciiFrameUrls.map(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Unable to load ASCII frame: ${url}`);
+        }
+        return (await response.text()).replace(/\r\n/g, '\n');
+      })
+    )
+      .then((frames) => {
+        cachedAsciiFrames = frames;
+        return frames;
+      })
+      .catch((error) => {
+        console.error(error);
+        return [];
+      })
+      .finally(() => {
+        asciiFramesLoadingPromise = null;
+      });
+
+    return asciiFramesLoadingPromise;
+  };
 
   // --- VARIABLES D'AUTOCOMPLÉTION ---
   const knownCommands = ['help', 'ls', 'clear', 'whoami', 'sudo', 'cd', 'cat', 'neofetch', 'rm'];
@@ -400,13 +434,13 @@ if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && 
 
   // Ouvre le terminal
   openTermBtn.addEventListener('click', () => {
-    terminalModal.classList.add('active');
+    terminalModalEl.classList.add('active');
     setTimeout(() => termInput.focus(), 100); 
   });
 
   // Ferme le terminal
   const closeModal = () => {
-    terminalModal.classList.remove('active');
+    terminalModalEl.classList.remove('active');
     // On nettoie les animations (ex: neofetch) pour ne pas faire ramer le PC en arrière-plan
     terminalIntervals.forEach(clearInterval);
     terminalIntervals.length = 0; 
@@ -563,32 +597,23 @@ if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && 
         break;
 
       // ----------------------------------------------------
-      // L'EASTER EGG NEOFETCH ANIMÉ
+      // L'EASTER EGG NEOFETCH : ANIMATION ASCII DEPUIS /assets/frames
       // ----------------------------------------------------
       case 'neofetch':
-        const frames = [
-          `\n .---. \n/     \\\n| o_o |\n\\  ^  /\n '---' `,
-          `\n .---. \n/     \\\n| >_o |\n\\  u  /\n '---' `,
-          `\n .---. \n/     \\\n| O_O |\n\\  o  /\n '---' `,
-           `\n .---. \n/     \\\n| -_- |\n\\  ~  /\n '---' `
-        ];
-
         neofetchCallCount++;
         const animId = `ascii-anim-${neofetchCallCount}`;
 
+        // Injection du conteneur HTML
         printLog(`
-          <div style="display: flex; gap: 20px; align-items: center; margin-top: 10px;">
-            <div id="${animId}" style="color: #ff0000; white-space: pre; font-family: monospace; font-weight: bold; text-shadow: 0 0 5px rgba(255,0,0,0.5); min-height: 80px; min-width: 60px;">
-              ${frames[0]}
-            </div>
+          <div style="display: flex; gap: 25px; align-items: center; margin-top: 15px; margin-bottom: 15px;">
+            <div id="${animId}" style="color: #ff0000; white-space: pre; font-family: monospace; font-weight: bold; text-shadow: 0 0 8px rgba(255,0,0,0.7); font-size: 1.1em; line-height: 1.1; min-height: 120px; min-width: 200px;"></div>
             <div>
-              <span class="term-user">root@josselin</span><br/>
-              -------------<br/>
-              <span class="t-blue">OS</span>: Josselin_OS v1.0<br/>
-              <span class="t-blue">Role</span>: Creative Developer<br/>
-              <span class="t-blue">Uptime</span>: 24/7<br/>
-              <span class="t-blue">Shell</span>: bash<br/>
-              <span class="t-blue">Theme</span>: Cyberpunk Dark<br/>
+              -------------------<br/>
+              <span class="t-blue">OS</span>: Josselin_OS (Cyberpunk Kernel)<br/>
+              <span class="t-blue">Net</span>: LINK_ESTABLISHED // SECURE<br/>
+              <span class="t-blue">Role</span>: Creative Developer & Breaker<br/>
+              <span class="t-blue">Status</span>: <span class="t-green" style="text-shadow: 0 0 5px #8ae234;">System Stable (mostly)</span><br/>
+              <span class="t-blue">Shell</span>: bash v5.0 (infected)<br/>
             </div>
           </div>
         `);
@@ -596,12 +621,29 @@ if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && 
         setTimeout(() => {
           const animTarget = document.getElementById(animId);
           if (animTarget) {
-            let frameIndex = 0;
-            const interval = setInterval(() => {
-              frameIndex = (frameIndex + 1) % frames.length;
-              animTarget.textContent = frames[frameIndex];
-            }, 600) as unknown as number;
-            terminalIntervals.push(interval);
+            void loadAsciiFrames().then((frames) => {
+              if (!frames.length) {
+                animTarget.textContent = '\n[ASCII animation unavailable]\n';
+                termBody!.scrollTop = termBody!.scrollHeight;
+                return;
+              }
+
+              let frameIndex = 0;
+              animTarget.textContent = `\n${frames[frameIndex]}\n`;
+              termBody!.scrollTop = termBody!.scrollHeight;
+
+              const interval = setInterval(() => {
+                if (!terminalModalEl.classList.contains('active')) {
+                  clearInterval(interval);
+                  return;
+                }
+                frameIndex = (frameIndex + 1) % frames.length;
+                animTarget.textContent = `\n${frames[frameIndex]}\n`;
+                termBody!.scrollTop = termBody!.scrollHeight;
+              }, 80) as unknown as number;
+
+              terminalIntervals.push(interval);
+            });
           }
         }, 50);
         break;
