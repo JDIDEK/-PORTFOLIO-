@@ -14,6 +14,9 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@barba/core": "^2.10.3",
+    "DRACOLoader.js": "link:three/examples/jsm/loaders/DRACOLoader.js",
+    "GLTFLoader.js": "link:three/examples/jsm/loaders/GLTFLoader.js",
     "gsap": "^3.14.2",
     "lenis": "^1.3.17",
     "ngrok": "5.0.0-beta.2",

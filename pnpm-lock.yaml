@@ -8,6 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@barba/core':
+        specifier: ^2.10.3
+        version: 2.10.3
+      DRACOLoader.js:
+        specifier: link:three/examples/jsm/loaders/DRACOLoader.js
+        version: link:three/examples/jsm/loaders/DRACOLoader.js
+      GLTFLoader.js:
+        specifier: link:three/examples/jsm/loaders/GLTFLoader.js
+        version: link:three/examples/jsm/loaders/GLTFLoader.js
       gsap:
         specifier: ^3.14.2
         version: 3.14.2
@@ -32,6 +41,9 @@ importers:
         version: 7.3.1(@types/node@25.3.0)(yaml@2.8.2)
 
 packages:
+
+  '@barba/core@2.10.3':
+    resolution: {integrity: sha512-ovVeT1wUcdMg8Lu6Iel6yEBW2+s6iA7qfRLCVKTSIfJU9csiawU0UOmVJdcoy3WNOsF2Ur9UfoTUC9aDcm4c0w==}
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
@@ -459,6 +471,9 @@ packages:
     resolution: {integrity: sha512-V+23sDMr12Wnz7iTcDeJr3O6AIxlnvT/bmaAAAP/Xda35C90p9599p0F1eHR/N1KILWSoWVAiOMFjBBXaXSMxg==}
     engines: {node: '>=10.19.0'}
 
+  is-promise@4.0.0:
+    resolution: {integrity: sha512-hvpoI6korhJMnej285dSg6nu1+e6uxs7zG3BYAm5byqDsgJNWwxzM6z6iZiAgQR4TJ30JmBTOwqZUw3WlyH3AQ==}
+
   json-buffer@3.0.1:
     resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
 
@@ -520,6 +535,9 @@ packages:
   p-cancelable@2.1.1:
     resolution: {integrity: sha512-BZOr3nRQHOntUjTrH8+Lh54smKHoHyur8We1V8DSMVrl5A2malOOwuJRnKRDjSnkoeBh4at6BwEnb5I7Jl31wg==}
     engines: {node: '>=8'}
+
+  path-to-regexp@6.3.0:
+    resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
 
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
@@ -628,6 +646,11 @@ packages:
     resolution: {integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==}
 
 snapshots:
+
+  '@barba/core@2.10.3':
+    dependencies:
+      is-promise: 4.0.0
+      path-to-regexp: 6.3.0
 
   '@dimforge/rapier3d-compat@0.12.0': {}
 
@@ -950,6 +973,8 @@ snapshots:
       quick-lru: 5.1.1
       resolve-alpn: 1.2.1
 
+  is-promise@4.0.0: {}
+
   json-buffer@3.0.1: {}
 
   keyv@4.5.4:
@@ -991,6 +1016,8 @@ snapshots:
       wrappy: 1.0.2
 
   p-cancelable@2.1.1: {}
+
+  path-to-regexp@6.3.0: {}
 
   pend@1.2.0: {}
 

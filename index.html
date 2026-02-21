@@ -5,178 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>[ JOSSELINDIDEK ]</title>
     <style>
+      /* ... TON CSS RESTE RIGOUREUSEMENT IDENTIQUE ... */
       @import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100;8..144,200;8..144,300;8..144,400&display=swap');
-
-      body, html {
-        margin: 0; padding: 0;
-        background-color: #000 !important; color: white !important;
-        overflow: hidden; /* PLUS DE SCROLL */
-        min-height: 100svh;
-        overscroll-behavior: none;
-        font-family: 'Roboto Flex', sans-serif;
-        font-weight: 200;
-      }
-      
+      body, html { margin: 0; padding: 0; background-color: #000 !important; color: white !important; overflow: hidden; min-height: 100svh; overscroll-behavior: none; font-family: 'Roboto Flex', sans-serif; font-weight: 200; }
       a { color: white; text-decoration: none; }
-      
-      #webgl-canvas {
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh;
-        z-index: 0; pointer-events: none; 
-      }
-      .webgl-source-video {
-        position: fixed;
-        left: -9999px;
-        top: -9999px;
-        width: 1px;
-        height: 1px;
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      /* L'INTERFACE FIXE (UI OVERLAY) */
-      .ui-overlay {
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh;
-        z-index: 10; 
-        pointer-events: none; /* Laisse passer la souris pour l'essuie-glace ! */
-      }
-      .ui-overlay a, .ui-overlay button, .ui-overlay .logo { pointer-events: auto; } /* Rend les liens cliquables */
-
-      /* --- LE NOUVEAU LOGO TERMINAL --- */
-      .logo {
-        position: fixed;
-        top: 64px;
-        left: 64px;
-        /* On enlève width et height fixes pour laisser le texte respirer */
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        font-family: Consolas, 'Courier New', monospace;
-        font-size: 18px;
-        font-weight: bold;
-        color: #fff;
-        text-decoration: none;
-        opacity: 0.85;
-        mix-blend-mode: plus-lighter;
-        transition: opacity 0.3s ease, text-shadow 0.3s ease;
-        z-index: 20;
-      }
-      
-      .logo:hover {
-        opacity: 1;
-        text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
-      }
-
-      .logo-bracket {
-        color: #ff0000; /* Le même rouge agressif que ton terminal */
-        font-weight: 300;
-        opacity: 0.7;
-      }
-      .logo-bracket:first-child {
-        margin-left: -1px;
-      }
-
-      .logo-letter {
-        /* On réutilise ton effet de bourdonnement néon ! */
-        animation: neon-buzz 4s infinite alternate;
-      }
-
-      .logo-cursor {
-        color: #ff0000;
-        /* On réutilise l'animation de clignotement de ton terminal */
-        animation: terminal-blink 1s step-end infinite;
-        margin-left: 1px;
-      }
+      #webgl-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh; z-index: 0; pointer-events: none; }
+      .webgl-source-video { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+      .ui-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh; z-index: 10; pointer-events: none; }
+      .ui-overlay a, .ui-overlay button, .ui-overlay .logo { pointer-events: auto; }
+      .logo { position: fixed; top: 64px; left: 64px; display: flex; align-items: center; gap: 2px; font-family: Consolas, 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #fff; text-decoration: none; opacity: 0.85; mix-blend-mode: plus-lighter; transition: opacity 0.3s ease, text-shadow 0.3s ease; z-index: 20; }
+      .logo:hover { opacity: 1; text-shadow: 0 0 10px rgba(255, 255, 255, 0.8); }
+      .logo-bracket { color: #ff0000; font-weight: 300; opacity: 0.7; }
+      .logo-bracket:first-child { margin-left: -1px; }
+      .logo-letter { animation: neon-buzz 4s infinite alternate; }
+      .logo-cursor { color: #ff0000; animation: terminal-blink 1s step-end infinite; margin-left: 1px; }
       .side-nav { position: fixed; top: 132px; left: 64px; mix-blend-mode: plus-lighter; }
       .side-nav ul { list-style: none; padding: 0; margin: 0; }
       .side-nav li { margin: 0; }
-      .side-nav a {
-        display: block;
-        width: max-content;
-        padding: 17px 0 4px;
-        margin-bottom: 10px;
-        text-decoration: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-        color: #fff;
-        font-size: 12px;
-        letter-spacing: 1.2px;
-        line-height: 1.2;
-        font-weight: 200;
-        text-shadow: 0 0 4px rgba(255, 255, 255, 0.75);
-        opacity: 0.75;
-        transition: opacity 0.15s ease;
-      }
-      .side-nav a.active {
-        border-bottom: none;
-        opacity: 1;
-        pointer-events: none;
-      }
+      .side-nav a { display: block; width: max-content; padding: 17px 0 4px; margin-bottom: 10px; text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, 0.45); color: #fff; font-size: 12px; letter-spacing: 1.2px; line-height: 1.2; font-weight: 200; text-shadow: 0 0 4px rgba(255, 255, 255, 0.75); opacity: 0.75; transition: opacity 0.15s ease; }
+      .side-nav a.active { border-bottom: none; opacity: 1; pointer-events: none; }
       .side-nav a:hover { opacity: 1; }
-
-      .bottom-left {
-        position: fixed;
-        bottom: 64px;
-        left: 64px;
-        z-index: 20;
-        width: max-content;
-        height: max-content;
-        mix-blend-mode: plus-lighter;
-      }
-      .config-btn {
-        display: block;
-        width: max-content;
-        background: transparent;
-        border: none;
-        color: #fff;
-        padding: 12px 0;
-        font-size: 12px;
-        letter-spacing: 1.2px;
-        line-height: 1.2;
-        font-weight: 200;
-        text-shadow: 0 0 4px rgba(255, 255, 255, 0.75);
-        opacity: 0.75;
-        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
-        transition: opacity 0.15s ease;
-      }
+      .bottom-left { position: fixed; bottom: 64px; left: 64px; z-index: 20; width: max-content; height: max-content; mix-blend-mode: plus-lighter; }
+      .config-btn { display: block; width: max-content; background: transparent; border: none; color: #fff; padding: 12px 0; font-size: 12px; letter-spacing: 1.2px; line-height: 1.2; font-weight: 200; text-shadow: 0 0 4px rgba(255, 255, 255, 0.75); opacity: 0.75; filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5)); transition: opacity 0.15s ease; }
       .config-btn:hover { opacity: 1; }
-
-      .bottom-right {
-        position: fixed;
-        right: 182px;
-        bottom: 166px;
-        z-index: 20;
-        width: max-content;
-        height: max-content;
-        text-align: right;
-        mix-blend-mode: plus-lighter;
-      }
-      .line-link {
-        display: block;
-        width: max-content;
-        margin-left: auto;
-        background: transparent;
-        border: none;
-        color: #fff;
-        text-decoration: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-        padding: 15px 0 4px;
-        margin-bottom: 10px;
-        font-size: 12px;
-        letter-spacing: 1.2px;
-        line-height: 1.2;
-        font-weight: 200;
-        text-shadow: 0 0 4px rgba(255, 255, 255, 0.75);
-        opacity: 0.75;
-        transition: opacity 0.15s ease;
-      }
+      .bottom-right { position: fixed; right: 182px; bottom: 166px; z-index: 20; width: max-content; height: max-content; text-align: right; mix-blend-mode: plus-lighter; }
+      .line-link { display: block; width: max-content; margin-left: auto; background: transparent; border: none; color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, 0.45); padding: 15px 0 4px; margin-bottom: 10px; font-size: 12px; letter-spacing: 1.2px; line-height: 1.2; font-weight: 200; text-shadow: 0 0 4px rgba(255, 255, 255, 0.75); opacity: 0.75; transition: opacity 0.15s ease; }
       .line-link:hover { opacity: 1; }
-
-      .label-fx {
-        white-space: nowrap;
-      }
-      .label-fx .t {
-        display: inline-block;
-        opacity: 0;
-      }
+      .label-fx { white-space: nowrap; }
+      .label-fx .t { display: inline-block; opacity: 0; }
       .label-fx .t:nth-of-type(8n + 1) { animation: .6s .1s glitch-fade-1 cubic-bezier(.61, 1, .88, 1) forwards; }
       .label-fx .t:nth-of-type(8n + 2) { animation: .6s -.1s glitch-fade-2 cubic-bezier(.33, 1, .68, 1) forwards; }
       .label-fx .t:nth-of-type(8n + 3) { animation: .6s .15s glitch-fade-3 cubic-bezier(.22, 1, .36, 1) forwards; }
@@ -185,59 +41,12 @@
       .label-fx .t:nth-of-type(8n + 6) { animation: .6s .25s glitch-fade-6 cubic-bezier(.25, 1, .5, 1) forwards; }
       .label-fx .t:nth-of-type(8n + 7) { animation: .6s .3s glitch-fade-7 cubic-bezier(.16, 1, .3, 1) forwards; }
       .label-fx .t:nth-of-type(8n + 8) { animation: .6s 0s glitch-fade-8 cubic-bezier(.34, 1.56, .64, 1) forwards; }
-
-      .copyright {
-        position: fixed;
-        right: 64px;
-        bottom: 62px;
-        margin: 0;
-        color: #fff;
-        font-size: 10px;
-        letter-spacing: 0.8px;
-        line-height: 1.2;
-        font-weight: 200;
-        text-shadow: 0 0 4px rgba(255, 255, 255, 0.75);
-        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75));
-        opacity: 0.75;
-        mix-blend-mode: plus-lighter;
-        animation: flicker 3s 2.15s infinite;
-      }
-
-      /* LE CONTENU CENTRAL */
-      .content { 
-        position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh;
-        z-index: 5; 
-        display: flex; align-items: center; justify-content: center;
-        pointer-events: none; /* TRÈS IMPORTANT: laisse l'essuie glace marcher au milieu */
-      }
-      
+      .copyright { position: fixed; right: 64px; bottom: 62px; margin: 0; color: #fff; font-size: 10px; letter-spacing: 0.8px; line-height: 1.2; font-weight: 200; text-shadow: 0 0 4px rgba(255, 255, 255, 0.75); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75)); opacity: 0.75; mix-blend-mode: plus-lighter; animation: flicker 3s 2.15s infinite; }
+      .content { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh; z-index: 5; display: flex; align-items: center; justify-content: center; pointer-events: none; }
       .hero { text-align: center; transform: translateY(0); }
-
-      /* Organisation des SVG */
-      .hello-world {
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        gap: clamp(56px, 8vw, 180px); /* Espace entre HELLO et WORLD */
-        margin-bottom: clamp(34px, 4.5vw, 72px);
-        pointer-events: auto; /* Active le hover sur les lettres */
-      }
-      .word {
-        display: flex;
-        gap: clamp(34px, 5.2vw, 96px); /* Espace entre lettres */
-        align-items: flex-end;
-      }
-      .svg-letter {
-        height: 5vh; /* Ajuste selon la taille de tes SVG */
-        cursor: default;
-        transition: transform 0.3s ease;
-        display: block;
-        opacity: 0;
-        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75));
-        will-change: opacity, filter, transform;
-      }
-
-      /* APPARITION INITIALE (GLITCH FADE) */
+      .hello-world { display: flex; align-items: flex-end; justify-content: center; gap: clamp(56px, 8vw, 180px); margin-bottom: clamp(34px, 4.5vw, 72px); pointer-events: auto; }
+      .word { display: flex; gap: clamp(34px, 5.2vw, 96px); align-items: flex-end; }
+      .svg-letter { height: 5vh; cursor: default; transition: transform 0.3s ease; display: block; opacity: 0; filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75)); will-change: opacity, filter, transform; }
       @keyframes glitch-fade-1 { 0% { opacity: 0; } 8.3% { opacity: .4; } 16.6% { opacity: .2; } 25% { opacity: .7; } 33.3% { opacity: .1; } 41.6% { opacity: .8; } 50% { opacity: .3; } 58.3% { opacity: .85; } 66.6% { opacity: .5; } 75% { opacity: .9; } 83.3% { opacity: .6; } 91.6% { opacity: .95; } to { opacity: 1; } }
       @keyframes glitch-fade-2 { 0% { opacity: 0; } 8.3% { opacity: .2; } 16.6% { opacity: .6; } 25% { opacity: .1; } 33.3% { opacity: .75; } 41.6% { opacity: .3; } 50% { opacity: .9; } 58.3% { opacity: .4; } 66.6% { opacity: .95; } 75% { opacity: .2; } 83.3% { opacity: .8; } 91.6% { opacity: .6; } to { opacity: 1; } }
       @keyframes glitch-fade-3 { 0% { opacity: 0; } 8.3% { opacity: .1; } 16.6% { opacity: .5; } 25% { opacity: .25; } 33.3% { opacity: .9; } 41.6% { opacity: .35; } 50% { opacity: .75; } 58.3% { opacity: .3; } 66.6% { opacity: .85; } 75% { opacity: .4; } 83.3% { opacity: .95; } 91.6% { opacity: .6; } to { opacity: 1; } }
@@ -246,204 +55,54 @@
       @keyframes glitch-fade-6 { 0% { opacity: 0; } 8.3% { opacity: .2; } 16.6% { opacity: .4; } 25% { opacity: .1; } 33.3% { opacity: .7; } 41.6% { opacity: .3; } 50% { opacity: .85; } 58.3% { opacity: .25; } 66.6% { opacity: .95; } 75% { opacity: .5; } 83.3% { opacity: .75; } 91.6% { opacity: .6; } to { opacity: 1; } }
       @keyframes glitch-fade-7 { 0% { opacity: 0; } 8.3% { opacity: .3; } 16.6% { opacity: .15; } 25% { opacity: .6; } 33.3% { opacity: .1; } 41.6% { opacity: .75; } 50% { opacity: .2; } 58.3% { opacity: .85; } 66.6% { opacity: .35; } 75% { opacity: .95; } 83.3% { opacity: .5; } 91.6% { opacity: .9; } to { opacity: 1; } }
       @keyframes glitch-fade-8 { 0% { opacity: 0; } 8.3% { opacity: .4; } 16.6% { opacity: .2; } 25% { opacity: .9; } 33.3% { opacity: .3; } 41.6% { opacity: .7; } 50% { opacity: .15; } 58.3% { opacity: .8; } 66.6% { opacity: .25; } 75% { opacity: .85; } 83.3% { opacity: .5; } 91.6% { opacity: .95; } to { opacity: 1; } }
-
-      /* NOUVEAUX EFFETS NÉON DÉFECTUEUX */
-      @keyframes neon-heavy-flicker {
-        0%, 2%, 4%, 8%, 11%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); }
-        3%, 5%, 7%, 9%, 10% { opacity: 0.15; filter: none;  }
-      }
-      @keyframes neon-fast-flicker {
-        0%, 40%, 42%, 46%, 52%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); }
-        41%, 43%, 45%, 50%, 51% { opacity: 0.2; filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2)); }
-      }
-      @keyframes neon-buzz {
-        0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); }
-        50% { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3)); opacity: 0.85; }
-      }
-
-      /* APPLICATION DES EFFETS AUX LETTRES */
+      @keyframes neon-heavy-flicker { 0%, 2%, 4%, 8%, 11%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); } 3%, 5%, 7%, 9%, 10% { opacity: 0.15; filter: none;  } }
+      @keyframes neon-fast-flicker { 0%, 40%, 42%, 46%, 52%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); } 41%, 43%, 45%, 50%, 51% { opacity: 0.2; filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2)); } }
+      @keyframes neon-buzz { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); } 50% { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3)); opacity: 0.85; } }
       .svg-letter.h, .svg-letter.d { animation: glitch-fade-1 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, neon-heavy-flicker 6s 2s infinite; }
       .svg-letter.e, .svg-letter.r { animation: glitch-fade-2 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, neon-fast-flicker 3.5s 1.5s infinite; }
       .svg-letter.l1, .svg-letter.o2 { animation: glitch-fade-3 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, neon-buzz 0.15s 1s infinite alternate; }
       .svg-letter.o1 { animation: glitch-fade-5 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, neon-heavy-flicker 8s 4s infinite; }
       .svg-letter.w, .svg-letter.l2 { animation: glitch-fade-6 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards, neon-fast-flicker 5s 0.5s infinite; }
-      .svg-letter.l3 {
-        animation: glitch-fade-8 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards;
-        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
-      }
-
-      /* COPYRIGHT ET SOUS-TITRES */
-      @keyframes flicker {
-        0%, 14%, 14.8%, 39%, 39.7%, 72%, 72.4%, 73%, 100% { opacity: 0.75; }
-        14.4%, 39.3%, 72.2%, 72.6% { opacity: 0.1; }
-      }
-
-      .hero-subtitle {
-        margin: 0;
-        margin-left: 0.8em;
-        font-size: 15px;
-        letter-spacing: 0.8em;
-        line-height: 1.2;
-        font-weight: 200;
-        text-shadow: 0 0 4px rgba(255, 255, 255, 0.75);
-        opacity: 0.8;
-      }
-
-      .hero-linux {
-        display: inline-block;
-        margin: 12px 0 0;
-        font-family: Consolas, 'Courier New', monospace;
-        font-size: 12px;
-        letter-spacing: 0.15em;
-        font-weight: 400;
-        opacity: 0.9;
-        text-shadow: 0 0 4px rgba(255, 255, 255, 0.3); 
-        cursor: pointer; /* Indique le clic */
-        pointer-events: auto; /* Permet de cliquer dessus à travers le canvas ! */
-        transition: opacity 0.3s ease;
-      }
-      .hero-linux:hover {
-        opacity: 1;
-        text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
-      }
-      
-      .term-user {
-        color: #ff0000;
-        text-shadow: 0 0 5px rgba(224, 45, 0, 0.4);
-      }
-      
-      .term-path {
-        color: #ffffff;
-        text-shadow: 0 0 5px rgba(114, 159, 207, 0.4);
-      }
-
-      .term-cursor {
-        display: inline-block;
-        margin-left: 2px;
-        animation: terminal-blink 1s step-end infinite;
-      }
-
-      @keyframes terminal-blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
-      }
-
-      /* --- MODALE TERMINAL BASH --- */
-      .terminal-overlay {
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        z-index: 100;
-        /* FOND TRANSPARENT : on n'assombrit plus rien ! */
-        background: transparent; 
-        opacity: 0; 
-        pointer-events: none; /* Laisse passer la souris quand c'est fermé */
-        transition: opacity 0.3s ease;
-      }
-      
-      .terminal-overlay.active { 
-        opacity: 1; 
-        pointer-events: none; /* L'arrière-plan reste transparent aux clics */
-      }
-      
-      .terminal-overlay.active .terminal-window {
-        pointer-events: auto; /* MAIS la fenêtre redevient cliquable */
-      }
-
-      .terminal-window {
-        /* On remet la bonne taille et le fond sombre de la petite fenêtre ! */
-        width: 80vw; max-width: 700px; height: 60vh; max-height: 500px;
-        background: rgba(12, 12, 12, 0.95);
-        border: 1px solid #333;
-        border-radius: 8px;
-        display: flex; flex-direction: column;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 15px rgba(224, 45, 0, 0.2);
-        overflow: hidden;
-        font-family: Consolas, 'Courier New', monospace;
-        
-        /* POSITIONNEMENT ABSOLU (Centré au début, modifiable au drag & drop) */
-        position: absolute;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-      }
-
-      .terminal-header {
-        background: #1a1a1a; padding: 8px 15px;
-        display: flex; justify-content: space-between; align-items: center;
-        font-size: 12px; color: #888; border-bottom: 1px solid #333;
-        cursor: grab; /* Indique qu'on peut déplacer la fenêtre */
-      }
-      .terminal-header:active {
-        cursor: grabbing; 
-      }
-      
-      .terminal-header button {
-        background: transparent; border: none; color: #888; font-size: 18px;
-        cursor: pointer; transition: color 0.2s; padding: 0; line-height: 1;
-      }
+      .svg-letter.l3 { animation: glitch-fade-8 0.8s 0.1s cubic-bezier(.61, 1, .88, 1) forwards; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5)); }
+      @keyframes flicker { 0%, 14%, 14.8%, 39%, 39.7%, 72%, 72.4%, 73%, 100% { opacity: 0.75; } 14.4%, 39.3%, 72.2%, 72.6% { opacity: 0.1; } }
+      .hero-subtitle { margin: 0; margin-left: 0.8em; font-size: 15px; letter-spacing: 0.8em; line-height: 1.2; font-weight: 200; text-shadow: 0 0 4px rgba(255, 255, 255, 0.75); opacity: 0.8; }
+      .hero-linux { display: inline-block; margin: 12px 0 0; font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.15em; font-weight: 400; opacity: 0.9; text-shadow: 0 0 4px rgba(255, 255, 255, 0.3); cursor: pointer; pointer-events: auto; transition: opacity 0.3s ease; }
+      .hero-linux:hover { opacity: 1; text-shadow: 0 0 8px rgba(255, 255, 255, 0.8); }
+      .term-user { color: #ff0000; text-shadow: 0 0 5px rgba(224, 45, 0, 0.4); }
+      .term-path { color: #ffffff; text-shadow: 0 0 5px rgba(114, 159, 207, 0.4); }
+      .term-cursor { display: inline-block; margin-left: 2px; animation: terminal-blink 1s step-end infinite; }
+      @keyframes terminal-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      .terminal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 100; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+      .terminal-overlay.active { opacity: 1; pointer-events: none; }
+      .terminal-overlay.active .terminal-window { pointer-events: auto; }
+      .terminal-window { width: 80vw; max-width: 700px; height: 60vh; max-height: 500px; background: rgba(12, 12, 12, 0.95); border: 1px solid #333; border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 15px rgba(224, 45, 0, 0.2); overflow: hidden; font-family: Consolas, 'Courier New', monospace; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+      .terminal-header { background: #1a1a1a; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888; border-bottom: 1px solid #333; cursor: grab; }
+      .terminal-header:active { cursor: grabbing; }
+      .terminal-header button { background: transparent; border: none; color: #888; font-size: 18px; cursor: pointer; transition: color 0.2s; padding: 0; line-height: 1; }
       .terminal-header button:hover { color: #ff0000; }
-
-      .terminal-body {
-        flex: 1; padding: 15px; overflow-y: auto;
-        color: #d3d7cf; font-size: 13px; line-height: 1.6;
-      }
+      .terminal-body { flex: 1; padding: 15px; overflow-y: auto; color: #d3d7cf; font-size: 13px; line-height: 1.6; }
       .terminal-body::-webkit-scrollbar { width: 8px; }
       .terminal-body::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-      
       .terminal-history > div { margin: 0 0 6px 0; }
       .terminal-history p { margin: 0 0 6px 0; }
       .terminal-history .cmd-echo { margin: 6px 0 3px; color: #fff; }
-      
-      .terminal-input-line {
-        display: flex; align-items: center; white-space: nowrap;
-        margin-top: 8px;
-      }
-      .terminal-input-line input {
-        flex: 1; background: transparent; border: none; color: #fff;
-        font-family: Consolas, 'Courier New', monospace; font-size: 13px;
-        outline: none; min-width: 0; margin-left: 8px; caret-color: #ff0000;
-      }
-
-      /* Couleurs utiles pour la console */
+      .terminal-input-line { display: flex; align-items: center; white-space: nowrap; margin-top: 8px; }
+      .terminal-input-line input { flex: 1; background: transparent; border: none; color: #fff; font-family: Consolas, 'Courier New', monospace; font-size: 13px; outline: none; min-width: 0; margin-left: 8px; caret-color: #ff0000; }
       .t-green { color: #8ae234; }
       .t-blue { color: #729fcf; }
       .t-err { color: #ff0000; }
       .t-warn { color: #fce94f; }
-
-      @media (max-width: 768px) {
-        .logo { top: 31px; left: 32px; width: 20px; height: 20px; }
-        .side-nav { top: 88px; left: 32px; }
-        .side-nav li:first-child { margin-top: -14.4px; }
-        .side-nav a { font-size: 10px; letter-spacing: 1px; padding: 10px 0 3px; margin-bottom: 8px; }
-        .bottom-left { left: 32px; bottom: 32px; }
-        .config-btn { font-size: 10px; letter-spacing: 1px; padding: 8px 0; }
-        .bottom-right { right: 12.5vw; bottom: calc(min(126px, 19.3846svh) - 8px); }
-        .line-link { font-size: 10px; letter-spacing: 1px; padding: 8px 0 3px; margin-bottom: 8px; }
-        .copyright { right: 32px; bottom: 30px; font-size: 8px; letter-spacing: 0.64px; }
-        .hero { transform: translateY(27px); }
-        .hello-world { gap: clamp(30px, 7.8vw, 52px); margin-bottom: clamp(20px, 3.2vh, 34px); }
-        .word { gap: clamp(14px, 3.8vw, 22px); }
-        .svg-letter { height: clamp(14.5px, 2.2vh, 20px); }
-        .hero-linux { margin-top: 16px; font-size: 10px; letter-spacing: 0.12em; }
-      }
-
-      @media (max-width: 480px) {
-        .side-nav { top: 79px; }
-        .side-nav a { font-size: 10px; letter-spacing: 1px; font-weight: 300; }
-        .bottom-right { right: 32px; }
-        .hero { transform: translateY(22.8px); }
-        .hello-world { gap: clamp(28px, 8.5vw, 38px); margin-bottom: clamp(16px, 2.4vh, 24px); }
-        .word { gap: clamp(15px, 4.8vw, 20px); }
-        .svg-letter { height: 14.5px; }
-        .hero-linux { margin-top: 14px; font-size: 9px; letter-spacing: 0.1em; }
-      }
+      @media (max-width: 768px) { .logo { top: 31px; left: 32px; width: 20px; height: 20px; } .side-nav { top: 88px; left: 32px; } .side-nav li:first-child { margin-top: -14.4px; } .side-nav a { font-size: 10px; letter-spacing: 1px; padding: 10px 0 3px; margin-bottom: 8px; } .bottom-left { left: 32px; bottom: 32px; } .config-btn { font-size: 10px; letter-spacing: 1px; padding: 8px 0; } .bottom-right { right: 12.5vw; bottom: calc(min(126px, 19.3846svh) - 8px); } .line-link { font-size: 10px; letter-spacing: 1px; padding: 8px 0 3px; margin-bottom: 8px; } .copyright { right: 32px; bottom: 30px; font-size: 8px; letter-spacing: 0.64px; } .hero { transform: translateY(27px); } .hello-world { gap: clamp(30px, 7.8vw, 52px); margin-bottom: clamp(20px, 3.2vh, 34px); } .word { gap: clamp(14px, 3.8vw, 22px); } .svg-letter { height: clamp(14.5px, 2.2vh, 20px); } .hero-linux { margin-top: 16px; font-size: 10px; letter-spacing: 0.12em; } }
+      @media (max-width: 480px) { .side-nav { top: 79px; } .side-nav a { font-size: 10px; letter-spacing: 1px; font-weight: 300; } .bottom-right { right: 32px; } .hero { transform: translateY(22.8px); } .hello-world { gap: clamp(28px, 8.5vw, 38px); margin-bottom: clamp(16px, 2.4vh, 24px); } .word { gap: clamp(15px, 4.8vw, 20px); } .svg-letter { height: 14.5px; } .hero-linux { margin-top: 14px; font-size: 9px; letter-spacing: 0.1em; } }
     </style>
   </head>
-  <body>
+  <body data-barba="wrapper">
     <video id="rain-video" class="webgl-source-video" src="/assets/webgl/texture/tNormal-Rain.mp4" loop muted autoplay playsinline></video>
     <video id="bg-video-1" class="webgl-source-video" src="/assets/video/bgVideoI.mp4" loop muted autoplay playsinline></video>
     <canvas id="webgl-canvas"></canvas>
 
     <div class="ui-overlay">
-      <a href="/" class="logo" aria-label="Home">
+      <a href="/index.html" class="logo" aria-label="Home">
         <span class="logo-bracket">[</span>
         <span class="logo-letter">J</span>
         <span class="logo-cursor">_</span>
@@ -451,9 +110,9 @@
       </a>
       <nav class="side-nav">
         <ul>
-          <li><a href="#" class="active js-audio-hover">HOME</a></li>
-          <li><a href="#" class="js-audio-hover">ABOUT</a></li>
-          <li><a href="#" class="js-audio-hover">WORKS</a></li>
+          <li><a href="/index.html" class="active js-audio-hover">HOME</a></li>
+          <li><a href="/about.html" class="js-audio-hover">ABOUT</a></li>
+          <li><a href="/works.html" class="js-audio-hover">WORKS</a></li>
         </ul>
       </nav>
       <div class="bottom-left">
@@ -466,30 +125,32 @@
       <p class="copyright">© JOSSELINDIDEK</p>
     </div>
 
-    <div class="content">
-      <div class="hero">
-        <div class="hello-world">
-          <div class="word">
-            <img src="/letters/home_letter_h_01.svg" data-hover="/letters/home_letter_h_02.svg" alt="H" class="svg-letter h">
-            <img src="/letters/home_letter_e_01.svg" data-hover="/letters/home_letter_e_02.svg" alt="E" class="svg-letter e">
-            <img src="/letters/home_letter_l1_01.svg" data-hover="/letters/home_letter_l1_02.svg" alt="L" class="svg-letter l1">
-            <img src="/letters/home_letter_l2_01.svg" data-hover="/letters/home_letter_l2_02.svg" alt="L" class="svg-letter l2">
-            <img src="/letters/home_letter_o1_01.svg" data-hover="/letters/home_letter_o1_02.svg" alt="O" class="svg-letter o1">
+    <main data-barba="container" data-barba-namespace="home">
+      <div class="content">
+        <div class="hero">
+          <div class="hello-world">
+            <div class="word">
+              <img src="/letters/home_letter_h_01.svg" data-hover="/letters/home_letter_h_02.svg" alt="H" class="svg-letter h">
+              <img src="/letters/home_letter_e_01.svg" data-hover="/letters/home_letter_e_02.svg" alt="E" class="svg-letter e">
+              <img src="/letters/home_letter_l1_01.svg" data-hover="/letters/home_letter_l1_02.svg" alt="L" class="svg-letter l1">
+              <img src="/letters/home_letter_l2_01.svg" data-hover="/letters/home_letter_l2_02.svg" alt="L" class="svg-letter l2">
+              <img src="/letters/home_letter_o1_01.svg" data-hover="/letters/home_letter_o1_02.svg" alt="O" class="svg-letter o1">
+            </div>
+            <div class="word">
+              <img src="/letters/home_letter_w_01.svg" data-hover="/letters/home_letter_w_02.svg" alt="W" class="svg-letter w">
+              <img src="/letters/home_letter_o2_01.svg" data-hover="/letters/home_letter_o2_02.svg" alt="O" class="svg-letter o2">
+              <img src="/letters/home_letter_r_01.svg" data-hover="/letters/home_letter_r_02.svg" alt="R" class="svg-letter r">
+              <img src="/letters/home_letter_l3_01.svg" data-hover="/letters/home_letter_l3_02.svg" alt="L" class="svg-letter l3">
+              <img src="/letters/home_letter_d_01.svg" data-hover="/letters/home_letter_d_02.svg" alt="D" class="svg-letter d">
+            </div>
           </div>
-          <div class="word">
-            <img src="/letters/home_letter_w_01.svg" data-hover="/letters/home_letter_w_02.svg" alt="W" class="svg-letter w">
-            <img src="/letters/home_letter_o2_01.svg" data-hover="/letters/home_letter_o2_02.svg" alt="O" class="svg-letter o2">
-            <img src="/letters/home_letter_r_01.svg" data-hover="/letters/home_letter_r_02.svg" alt="R" class="svg-letter r">
-            <img src="/letters/home_letter_l3_01.svg" data-hover="/letters/home_letter_l3_02.svg" alt="L" class="svg-letter l3">
-            <img src="/letters/home_letter_d_01.svg" data-hover="/letters/home_letter_d_02.svg" alt="D" class="svg-letter d">
-          </div>
-        </div>
 
-        <p class="hero-linux" id="open-terminal" title="Execute terminal">
-          <span class="term-user">root@josselin</span>:<span class="term-path">~/portfolio</span>#<span class="term-cursor">_</span>
-        </p>
+          <p class="hero-linux" id="open-terminal" title="Execute terminal">
+            <span class="term-user">root@josselin</span>:<span class="term-path">~/portfolio</span>#<span class="term-cursor">_</span>
+          </p>
+        </div>
       </div>
-    </div>
+    </main>
 
     <div class="terminal-overlay" id="terminal-modal">
       <div class="terminal-window">
