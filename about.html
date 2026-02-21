@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-page-id="about" data-loaded="0">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,14 +14,24 @@
       href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100;8..144,200;8..144,300;8..144,400&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="/src/about.css" data-about-style="1" />
   </head>
-  <body class="about-body">
+  <body class="about-body" data-barba="wrapper">
+    <div class="lLoading" id="jsLoading" aria-hidden="true">
+      <div class="lLoading__info">
+        <p translate="no" class="p1">LOADING<br>----------------------------------------<br>Loading environment...<br>Transitioning to scene...</p>
+        <p class="p2">Assets : <span id="jsLoadCount">0</span> / <span id="jsLoadMax">1</span></p>
+        <div class="bar"><div class="bar__inner"><div class="progress" id="jsLoadProgress"></div></div></div>
+        <p class="p5" translate="no">_<br></p>
+      </div>
+    </div>
+
     <video id="rain-video" class="webgl-source-video" src="/assets/webgl/texture/tNormal-Rain.mp4" loop muted autoplay playsinline></video>
     <video id="bg-video-1" class="webgl-source-video" src="/assets/video/bgVideoI.mp4" loop muted autoplay playsinline></video>
     <canvas id="webgl-canvas"></canvas>
 
     <div class="ui-overlay">
-      <a href="/" class="logo" aria-label="Home">
+      <a href="/index.html" class="logo" aria-label="Home">
         <span class="logo-bracket">[</span>
         <span class="logo-letter">J</span>
         <span class="logo-cursor">_</span>
@@ -30,9 +40,9 @@
 
       <nav class="side-nav" aria-label="Main navigation">
         <ul>
-          <li><a href="/" class="js-audio-hover">HOME</a></li>
+          <li><a href="/index.html" class="js-audio-hover">HOME</a></li>
           <li><a href="/about.html" class="active js-audio-hover">ABOUT</a></li>
-          <li><a href="#" class="js-audio-hover">WORKS</a></li>
+          <li><a href="/works.html" class="js-audio-hover">WORKS</a></li>
         </ul>
       </nav>
 
@@ -43,7 +53,7 @@
       <p class="copyright">© JOSSELINDIDEK</p>
     </div>
 
-    <main class="about-main">
+    <main class="about-main" data-barba="container" data-barba-namespace="about">
 
       <section class="about-shell">
         <aside class="about-toc" aria-label="Table des matières">
@@ -155,6 +165,6 @@
       <input id="fixed-scrollbar-range" type="range" min="0" max="1000" value="0" />
     </div>
 
-    <script type="module" src="/src/about.ts"></script>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

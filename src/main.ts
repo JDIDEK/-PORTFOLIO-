@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import barba from '@barba/core';
-import gsap from 'gsap';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
+import './transition.css';
+import aboutCssHref from './about.css?url';
 
 // --------------------------------------------------------
 // 1. SETUP THREE.JS (Mode Plein Écran)
@@ -293,10 +292,8 @@ function raf() {
 requestAnimationFrame(raf);
 
 // --------------------------------------------------------
-// 6. EFFET GLITCH SUR LES LABELS UI
+// 6. HELPERS UI + AUDIO
 // --------------------------------------------------------
-const glitchLabels = document.querySelectorAll<HTMLElement>('.label-fx');
-
 function setGlitchLabelText(label: HTMLElement, text: string): void {
   label.setAttribute('aria-label', text);
   label.textContent = '';
@@ -309,14 +306,16 @@ function setGlitchLabelText(label: HTMLElement, text: string): void {
   }
 }
 
-glitchLabels.forEach((label) => {
-  const text = (label.textContent ?? '').trim();
-  setGlitchLabelText(label, text);
-});
+const refreshGlitchLabels = (): void => {
+  const glitchLabels = document.querySelectorAll<HTMLElement>('.label-fx');
+  glitchLabels.forEach((label) => {
+    const text = (label.textContent ?? '').trim();
+    setGlitchLabelText(label, text);
+  });
+};
 
-// --------------------------------------------------------
-// 7. AUDIO UI (SOUND TOGGLE + HOVER)
-// --------------------------------------------------------
+refreshGlitchLabels();
+
 const hoverSoundSrc = '/assets/sounds/hover.mp3';
 let isSoundOn = false;
 let isAudioUnlocked = false;
@@ -346,22 +345,31 @@ const playHoverSound = (): void => {
   hoverSound.play().catch(() => {});
 };
 
-const hoverTargets = document.querySelectorAll<HTMLElement>('.js-audio-hover');
-hoverTargets.forEach((target) => {
-  target.addEventListener('mouseenter', playHoverSound);
+document.addEventListener('mouseover', (event) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  const hoverEl = target.closest('.js-audio-hover');
+  if (!hoverEl) return;
+
+  const related = event.relatedTarget as Node | null;
+  if (related && hoverEl.contains(related)) return;
+
+  playHoverSound();
 });
 
-const soundToggleBtn = document.querySelector<HTMLElement>('#sound-toggle-btn');
-if (soundToggleBtn) {
-  soundToggleBtn.addEventListener('click', () => {
-    unlockAudio();
-    isSoundOn = !isSoundOn;
-    setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
-  });
-}
+document.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  const soundToggleBtn = target.closest('#sound-toggle-btn') as HTMLElement | null;
+  if (!soundToggleBtn) return;
+
+  unlockAudio();
+  isSoundOn = !isSoundOn;
+  setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
+});
 
 // --------------------------------------------------------
-// 8. REDIMENSIONNEMENT
+// 7. REDIMENSIONNEMENT
 // --------------------------------------------------------
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -380,163 +388,556 @@ window.addEventListener('resize', () => {
 });
 
 // --------------------------------------------------------
-// 9. LOGIQUE DU TERMINAL INTERACTIF
+// 8. LOGIQUE PAGE HOME
 // --------------------------------------------------------
-const terminalModal = document.getElementById('terminal-modal');
-const closeTermBtn = document.getElementById('close-terminal');
-const termInput = document.getElementById('terminal-input') as HTMLInputElement;
-const termHistory = document.getElementById('terminal-history');
-const termBody = document.getElementById('terminal-body');
-const termHeader = document.querySelector('.terminal-header') as HTMLElement;
-const termWindow = document.querySelector('.terminal-window') as HTMLElement;
+type Cleanup = () => void;
 
-if (terminalModal && closeTermBtn && termInput && termHistory && termBody && termHeader && termWindow) {
-  const terminalModalEl = terminalModal;
-  
-  // VARIABLES D'HISTORIQUE ET ANIMATIONS
+const initHomeTerminal = (): Cleanup => {
+  const terminalModal = document.getElementById('terminal-modal');
+  const closeTermBtn = document.getElementById('close-terminal');
+  const termInput = document.getElementById('terminal-input') as HTMLInputElement | null;
+  const termHistory = document.getElementById('terminal-history');
+  const termBody = document.getElementById('terminal-body');
+  const termHeader = document.querySelector('.terminal-header') as HTMLElement | null;
+  const termWindow = document.querySelector('.terminal-window') as HTMLElement | null;
+
+  if (!terminalModal || !closeTermBtn || !termInput || !termHistory || !termBody || !termHeader || !termWindow) {
+    return () => {};
+  }
+
   const cmdHistory: string[] = [];
   let historyIndex = -1;
   const terminalIntervals: number[] = [];
-  let neofetchCallCount = 0;
-  
-  // NOUVEAU: Délégation d'événement pour ouvrir le terminal (indispensable avec Barba.js)
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('#open-terminal')) {
-      terminalModalEl.classList.add('active');
-      setTimeout(() => termInput.focus(), 100); 
-    }
-  });
 
-  // Ferme le terminal
-  const closeModal = () => {
-    terminalModalEl.classList.remove('active');
-    terminalIntervals.forEach(clearInterval);
-    terminalIntervals.length = 0; 
+  const closeModal = (): void => {
+    terminalModal.classList.remove('active');
+    terminalIntervals.forEach((intervalId) => clearInterval(intervalId));
+    terminalIntervals.length = 0;
   };
-  closeTermBtn.addEventListener('click', closeModal);
 
-  // Focus automatique
-  termBody.addEventListener('click', () => termInput.focus());
+  const onOpenClick = (event: Event): void => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('#open-terminal')) return;
+    terminalModal.classList.add('active');
+    window.setTimeout(() => termInput.focus(), 100);
+  };
 
-  // LOGIQUE DE DRAG & DROP
+  const onCloseClick = (): void => {
+    closeModal();
+  };
+
+  const onBodyClick = (): void => {
+    termInput.focus();
+  };
+
   let isDragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
 
-  termHeader.addEventListener('mousedown', (e) => {
-    if ((e.target as HTMLElement).id === 'close-terminal') return;
+  const onMouseDownHeader = (event: MouseEvent): void => {
+    if ((event.target as HTMLElement).id === 'close-terminal') return;
     isDragging = true;
     const rect = termWindow.getBoundingClientRect();
-    dragOffsetX = e.clientX - rect.left;
-    dragOffsetY = e.clientY - rect.top;
+    dragOffsetX = event.clientX - rect.left;
+    dragOffsetY = event.clientY - rect.top;
     termWindow.style.transform = 'none';
-    termWindow.style.left = rect.left + 'px';
-    termWindow.style.top = rect.top + 'px';
-  });
+    termWindow.style.left = `${rect.left}px`;
+    termWindow.style.top = `${rect.top}px`;
+  };
 
-  document.addEventListener('mousemove', (e) => {
+  const onMouseMove = (event: MouseEvent): void => {
     if (!isDragging) return;
-    termWindow.style.left = (e.clientX - dragOffsetX) + 'px';
-    termWindow.style.top = (e.clientY - dragOffsetY) + 'px';
-  });
-  document.addEventListener('mouseup', () => { isDragging = false; });
+    termWindow.style.left = `${event.clientX - dragOffsetX}px`;
+    termWindow.style.top = `${event.clientY - dragOffsetY}px`;
+  };
 
-  // ÉCOUTE DES TOUCHES DU CLAVIER
-  termInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault(); 
-      // ... Reste de l'autocomplétion (j'ai gardé tout ton code)
-    }
-    if (e.key === 'ArrowUp') { e.preventDefault(); if (historyIndex > 0) { historyIndex--; termInput.value = cmdHistory[historyIndex]; } return; }
-    if (e.key === 'ArrowDown') { e.preventDefault(); if (historyIndex < cmdHistory.length - 1) { historyIndex++; termInput.value = cmdHistory[historyIndex]; } else { historyIndex = cmdHistory.length; termInput.value = ''; } return; }
-    if (e.key === 'Enter') {
-      const cmdText = termInput.value.trim();
-      if (cmdText) {
-        cmdHistory.push(cmdText);
-        historyIndex = cmdHistory.length;
-        executeCommand(cmdText);
-      } else {
-        printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span>#</div>`);
-      }
-      termInput.value = '';
-    }
-  });
+  const onMouseUp = (): void => {
+    isDragging = false;
+  };
 
-  function printLog(html: string) {
+  const printLog = (html: string): void => {
     const p = document.createElement('div');
     p.innerHTML = html;
-    termHistory!.appendChild(p);
-    termBody!.scrollTop = termBody!.scrollHeight;
-  }
+    termHistory.appendChild(p);
+    termBody.scrollTop = termBody.scrollHeight;
+  };
 
-  function executeCommand(cmdText: string) {
+  const executeCommand = (cmdText: string): void => {
     printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span># ${cmdText}</div>`);
     const args = cmdText.split(/\s+/).filter(Boolean);
     const cmd = args[0];
     const extraArgs = args.slice(1);
 
     switch (cmd) {
-      case 'clear': termHistory!.innerHTML = ''; break;
-      case 'whoami': printLog('root'); break;
+      case 'clear':
+        termHistory.innerHTML = '';
+        break;
+      case 'whoami':
+        printLog('root');
+        break;
       case 'cd':
-         if (extraArgs.length === 0) printLog('');
-         else {
-           const target = extraArgs[0].replace(/\/$/, '');
-           if (['about', 'works'].includes(target)) {
-             printLog(`Navigating to <span class="t-blue">${target}</span>...`);
-             // NOUVEAU: On utilise Barba pour changer de page via le terminal !
-             setTimeout(() => { 
-               closeModal(); 
-               barba.go(`/${target}.html`);
-             }, 800);
-           } else {
-             printLog(`<span class="t-err">bash: cd: ${target}: No such file or directory</span>`);
-           }
-         }
-         break;
-      // ... Reste de tes commandes (cat, neofetch, rm...) J'ai raccourci ici pour l'exemple mais garde bien tout ton bloc switch originel intact !
-      default: printLog(`<span class="t-err">bash: ${cmd}: command not found</span>`);
+        if (extraArgs.length === 0) {
+          printLog('');
+          break;
+        }
+        {
+          const target = extraArgs[0].replace(/\/$/, '');
+          if (['about', 'works'].includes(target)) {
+            printLog(`Navigating to <span class="t-blue">${target}</span>...`);
+            window.setTimeout(() => {
+              closeModal();
+              barba.go(`/${target}.html`);
+            }, 800);
+          } else {
+            printLog(`<span class="t-err">bash: cd: ${target}: No such file or directory</span>`);
+          }
+        }
+        break;
+      default:
+        printLog(`<span class="t-err">bash: ${cmd}: command not found</span>`);
     }
-  }
-}
+  };
+
+  const onInputKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (historyIndex > 0) {
+        historyIndex--;
+        termInput.value = cmdHistory[historyIndex];
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (historyIndex < cmdHistory.length - 1) {
+        historyIndex++;
+        termInput.value = cmdHistory[historyIndex];
+      } else {
+        historyIndex = cmdHistory.length;
+        termInput.value = '';
+      }
+      return;
+    }
+
+    if (event.key !== 'Enter') return;
+
+    const cmdText = termInput.value.trim();
+    if (cmdText) {
+      cmdHistory.push(cmdText);
+      historyIndex = cmdHistory.length;
+      executeCommand(cmdText);
+    } else {
+      printLog('<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span>#</div>');
+    }
+    termInput.value = '';
+  };
+
+  document.addEventListener('click', onOpenClick);
+  closeTermBtn.addEventListener('click', onCloseClick);
+  termBody.addEventListener('click', onBodyClick);
+  termHeader.addEventListener('mousedown', onMouseDownHeader);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+  termInput.addEventListener('keydown', onInputKeyDown);
+
+  return () => {
+    closeModal();
+    document.removeEventListener('click', onOpenClick);
+    closeTermBtn.removeEventListener('click', onCloseClick);
+    termBody.removeEventListener('click', onBodyClick);
+    termHeader.removeEventListener('mousedown', onMouseDownHeader);
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    termInput.removeEventListener('keydown', onInputKeyDown);
+  };
+};
 
 // --------------------------------------------------------
-// 10. TRANSITIONS DE PAGES (BARBA.JS)
+// 9. LOGIQUE PAGE ABOUT
 // --------------------------------------------------------
-barba.init({
-  transitions: [{
-    name: 'fade',
-    leave(data) {
-      // Animation quand on quitte la page (disparition du Hello World)
-      return gsap.to(data.current.container, {
-        opacity: 0,
-        duration: 0.5,
-        ease: 'power2.inOut'
+const initAboutPage = (): Cleanup => {
+  const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.about-toc__item'));
+  const sectionElements = Array.from(document.querySelectorAll<HTMLElement>('[data-section]'));
+  const scrollbarRange = document.querySelector<HTMLInputElement>('#fixed-scrollbar-range');
+
+  if (tocLinks.length === 0 || sectionElements.length === 0) {
+    return () => {};
+  }
+
+  const cleanups: Cleanup[] = [];
+  const sectionById = new Map<string, HTMLElement>();
+
+  for (const section of sectionElements) {
+    const sectionId = section.dataset.section;
+    if (sectionId) sectionById.set(sectionId, section);
+  }
+
+  const setActiveToc = (sectionId: string): void => {
+    for (const link of tocLinks) {
+      const isActive = link.dataset.target === sectionId;
+      link.classList.toggle('is-active', isActive);
+      if (isActive) {
+        link.setAttribute('aria-current', 'true');
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    }
+  };
+
+  for (const link of tocLinks) {
+    const onClick = (event: Event): void => {
+      event.preventDefault();
+      const targetId = link.dataset.target;
+      if (!targetId) return;
+
+      const section = sectionById.get(targetId);
+      if (!section) return;
+
+      section.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start'
       });
+      setActiveToc(targetId);
+    };
+
+    link.addEventListener('click', onClick);
+    cleanups.push(() => link.removeEventListener('click', onClick));
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      let candidate: string | null = null;
+      let maxRatio = 0;
+
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        if (entry.intersectionRatio >= maxRatio) {
+          maxRatio = entry.intersectionRatio;
+          candidate = (entry.target as HTMLElement).dataset.section ?? null;
+        }
+      }
+
+      if (candidate) setActiveToc(candidate);
     },
-    enter(data) {
-      // Animation quand la nouvelle page arrive
-      return gsap.from(data.next.container, {
-        opacity: 0,
-        duration: 0.5,
-        ease: 'power2.inOut'
+    {
+      root: null,
+      threshold: [0.25, 0.4, 0.6, 0.8],
+      rootMargin: '-20% 0px -45% 0px'
+    }
+  );
+
+  for (const section of sectionElements) {
+    observer.observe(section);
+  }
+  cleanups.push(() => observer.disconnect());
+
+  if (tocLinks.length > 0) {
+    setActiveToc(tocLinks[0].dataset.target ?? '');
+  }
+
+  if (scrollbarRange) {
+    const setScrollbarValueFromScroll = (): void => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (maxScroll <= 0) {
+        scrollbarRange.value = '0';
+        scrollbarRange.disabled = true;
+        return;
+      }
+      scrollbarRange.disabled = false;
+      const ratio = window.scrollY / maxScroll;
+      scrollbarRange.value = String(Math.round(ratio * 1000));
+    };
+
+    const scrollToRangePosition = (): void => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (maxScroll <= 0) return;
+      const ratio = Number(scrollbarRange.value) / 1000;
+      window.scrollTo({
+        top: ratio * maxScroll,
+        behavior: 'auto'
       });
+    };
+
+    scrollbarRange.addEventListener('input', scrollToRangePosition);
+    scrollbarRange.addEventListener('change', scrollToRangePosition);
+    window.addEventListener('scroll', setScrollbarValueFromScroll, { passive: true });
+    window.addEventListener('resize', setScrollbarValueFromScroll);
+    setScrollbarValueFromScroll();
+
+    cleanups.push(() => {
+      scrollbarRange.removeEventListener('input', scrollToRangePosition);
+      scrollbarRange.removeEventListener('change', scrollToRangePosition);
+      window.removeEventListener('scroll', setScrollbarValueFromScroll);
+      window.removeEventListener('resize', setScrollbarValueFromScroll);
+    });
+  }
+
+  return () => {
+    for (const cleanup of cleanups) cleanup();
+  };
+};
+
+// --------------------------------------------------------
+// 10. ORCHESTRATION PAGES + TRANSITIONS
+// --------------------------------------------------------
+let currentPageCleanup: Cleanup | null = null;
+const rootEl = document.documentElement;
+const loadingContainer = document.getElementById('jsLoading');
+const loadingCountEl = document.getElementById('jsLoadCount');
+const loadingMaxEl = document.getElementById('jsLoadMax');
+const loadingProgressEl = document.getElementById('jsLoadProgress') as HTMLElement | null;
+let loadingCount = 0;
+const loadingMax = Number(loadingMaxEl?.textContent ?? '1');
+let aboutStyleLink = document.querySelector<HTMLLinkElement>('link[data-about-style="1"]');
+let distortionTurbulence: SVGFETurbulenceElement | null = null;
+let distortionDisplacement: SVGFEDisplacementMapElement | null = null;
+
+const wait = (ms: number): Promise<void> => new Promise((resolve) => {
+  window.setTimeout(resolve, ms);
+});
+
+const ensureDistortionFilter = (): void => {
+  if (distortionTurbulence && distortionDisplacement) return;
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.classList.add('page-distortion-defs');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+
+  const filter = document.createElementNS(NS, 'filter');
+  filter.setAttribute('id', 'page-distort-filter');
+  filter.setAttribute('x', '-20%');
+  filter.setAttribute('y', '-20%');
+  filter.setAttribute('width', '140%');
+  filter.setAttribute('height', '140%');
+  filter.setAttribute('color-interpolation-filters', 'sRGB');
+
+  const turbulence = document.createElementNS(NS, 'feTurbulence');
+  turbulence.setAttribute('type', 'fractalNoise');
+  turbulence.setAttribute('baseFrequency', '0.008 0.03');
+  turbulence.setAttribute('numOctaves', '1');
+  turbulence.setAttribute('seed', '7');
+  turbulence.setAttribute('result', 'noise');
+
+  const displacement = document.createElementNS(NS, 'feDisplacementMap');
+  displacement.setAttribute('in', 'SourceGraphic');
+  displacement.setAttribute('in2', 'noise');
+  displacement.setAttribute('scale', '0');
+  displacement.setAttribute('xChannelSelector', 'R');
+  displacement.setAttribute('yChannelSelector', 'G');
+
+  filter.appendChild(turbulence);
+  filter.appendChild(displacement);
+  svg.appendChild(filter);
+  document.body.appendChild(svg);
+
+  distortionTurbulence = turbulence;
+  distortionDisplacement = displacement;
+};
+
+const runDistortionPhase = (target: HTMLElement, phase: 'out' | 'in'): Promise<void> => new Promise((resolve) => {
+  ensureDistortionFilter();
+  if (!distortionTurbulence || !distortionDisplacement) {
+    resolve();
+    return;
+  }
+
+  const duration = phase === 'out' ? 420 : 480;
+  const start = performance.now();
+  target.classList.add('is-distorting-page');
+
+  const rafStep = (now: number): void => {
+    const t = Math.min(1, (now - start) / duration);
+    const easeOut = 1 - Math.pow(1 - t, 3);
+    const strength = phase === 'out' ? easeOut : 1 - easeOut;
+
+    const freqX = 0.008 + strength * 0.05;
+    const freqY = 0.03 + strength * 0.2;
+    const scale = Math.round(130 * strength);
+    const jitterAmp = 2 + 10 * strength;
+    const jitterX = Math.sin((t + 0.15) * 40) * jitterAmp;
+    const jitterY = Math.cos((t + 0.11) * 34) * jitterAmp * 0.7;
+
+    distortionTurbulence!.setAttribute('baseFrequency', `${freqX.toFixed(4)} ${freqY.toFixed(4)}`);
+    distortionDisplacement!.setAttribute('scale', `${scale}`);
+
+    target.style.filter = 'url(#page-distort-filter)';
+    target.style.transform = `translate3d(${jitterX.toFixed(2)}px, ${jitterY.toFixed(2)}px, 0)`;
+    target.style.opacity = '1';
+
+    if (t < 1) {
+      requestAnimationFrame(rafStep);
+      return;
     }
-  }],
-  views: [{
-    // Ce code s'exécute quand on arrive sur n'importe quelle page
-    namespace: 'home',
-    beforeEnter() {
-      // Met à jour la classe "active" du menu
-      document.querySelectorAll('.side-nav a').forEach(el => el.classList.remove('active'));
-      document.querySelector('.side-nav a[href="/index.html"]')?.classList.add('active');
-    }
-  }, {
-    namespace: 'about',
-    beforeEnter() {
-      document.querySelectorAll('.side-nav a').forEach(el => el.classList.remove('active'));
-      document.querySelector('.side-nav a[href="/about.html"]')?.classList.add('active');
+
+    distortionDisplacement!.setAttribute('scale', '0');
+    distortionTurbulence!.setAttribute('baseFrequency', '0.008 0.03');
+    target.style.filter = '';
+    target.style.transform = '';
+    target.style.opacity = '';
+    target.classList.remove('is-distorting-page');
+    resolve();
+  };
+
+  requestAnimationFrame(rafStep);
+});
+
+const waitForStylesheet = (linkEl: HTMLLinkElement): Promise<void> => new Promise((resolve) => {
+  const sheet = linkEl.sheet as CSSStyleSheet | null;
+  if (sheet) {
+    resolve();
+    return;
+  }
+
+  linkEl.addEventListener('load', () => resolve(), { once: true });
+  linkEl.addEventListener('error', () => resolve(), { once: true });
+});
+
+const setAboutStylesEnabled = async (enabled: boolean): Promise<void> => {
+  if (!enabled) {
+    if (aboutStyleLink) aboutStyleLink.disabled = true;
+    return;
+  }
+
+  if (!aboutStyleLink) {
+    aboutStyleLink = document.createElement('link');
+    aboutStyleLink.rel = 'stylesheet';
+    aboutStyleLink.href = aboutCssHref;
+    aboutStyleLink.dataset.aboutStyle = '1';
+    document.head.appendChild(aboutStyleLink);
+  }
+
+  aboutStyleLink.disabled = false;
+  await waitForStylesheet(aboutStyleLink);
+};
+
+const addLoadedCounter = (): void => {
+  loadingCount = Math.min(loadingMax, loadingCount + 1);
+  if (loadingCountEl) {
+    loadingCountEl.textContent = String(loadingCount);
+  }
+  if (loadingProgressEl) {
+    const progress = loadingMax > 0 ? loadingCount / loadingMax : 1;
+    loadingProgressEl.style.transform = `scaleX(${progress})`;
+  }
+};
+
+const setLoadingComplete = (): void => {
+  loadingContainer?.setAttribute('data-complete', '1');
+};
+
+const removeLoading = (): void => {
+  loadingContainer?.remove();
+};
+
+const updateActiveMenu = (namespace: string | null): void => {
+  const navLinks = document.querySelectorAll<HTMLAnchorElement>('.side-nav a');
+  navLinks.forEach((link) => {
+    link.classList.remove('active');
+    link.removeAttribute('aria-current');
+  });
+
+  const activeHref = namespace === 'about' ? '/about.html' : '/index.html';
+  const activeLink = Array.from(navLinks).find((link) => {
+    const href = link.getAttribute('href');
+    if (!href) return false;
+    return href === activeHref || (namespace === 'home' && href === '/');
+  });
+
+  if (activeLink) {
+    activeLink.classList.add('active');
+    activeLink.setAttribute('aria-current', 'page');
+  }
+};
+
+const setupPage = async (namespace: string | null): Promise<void> => {
+  await setAboutStylesEnabled(namespace === 'about');
+  rootEl.dataset.pageId = namespace ?? 'home';
+  refreshGlitchLabels();
+  updateActiveMenu(namespace);
+
+  if (currentPageCleanup) {
+    currentPageCleanup();
+    currentPageCleanup = null;
+  }
+
+  if (namespace === 'about') {
+    currentPageCleanup = initAboutPage();
+    return;
+  }
+
+  currentPageCleanup = initHomeTerminal();
+};
+
+const getCurrentNamespace = (): string | null => {
+  const container = document.querySelector<HTMLElement>('[data-barba="container"]');
+  return container?.dataset.barbaNamespace ?? null;
+};
+
+if (!rootEl.dataset.loaded) rootEl.dataset.loaded = '0';
+if (!rootEl.dataset.pageId) {
+  rootEl.dataset.pageId = getCurrentNamespace() ?? 'home';
+}
+
+barba.init({
+  sync: false,
+  debug: false,
+  preventRunning: true,
+  timeout: 5000,
+  transitions: [{
+    name: 'shoya-like',
+    async once(data: any) {
+      window.scrollTo(0, 0);
+      rootEl.dataset.loaded = '0';
+      await setupPage(data.next.namespace ?? getCurrentNamespace());
+      addLoadedCounter();
+      setLoadingComplete();
+      rootEl.dataset.once = '1';
+      await wait(300);
+      rootEl.dataset.loaded = '1';
+      await wait(100);
+      await wait(400);
+      removeLoading();
+    },
+    async beforeLeave() {
+      rootEl.dataset.transitioning = '1';
+      if (currentPageCleanup) {
+        currentPageCleanup();
+        currentPageCleanup = null;
+      }
+      await wait(40);
+    },
+    async leave() {
+      const pageRoot = document.body;
+      if (!pageRoot) {
+        await wait(120);
+        return;
+      }
+      await runDistortionPhase(pageRoot, 'out');
+    },
+    async beforeEnter(data: any) {
+      const nextNamespace = data.next.namespace ?? 'home';
+      rootEl.dataset.pageId = nextNamespace;
+      await setAboutStylesEnabled(nextNamespace === 'about');
+    },
+    async enter() {
+      window.scrollTo(0, 0);
+      const pageRoot = document.body;
+      if (!pageRoot) return;
+      await runDistortionPhase(pageRoot, 'in');
+    },
+    async after(data: any) {
+      window.scrollTo(0, 0);
+      await setupPage(data.next.namespace ?? getCurrentNamespace());
+      await wait(100);
+      rootEl.dataset.transitioning = '0';
     }
   }]
 });

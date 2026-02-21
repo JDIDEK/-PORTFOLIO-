@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-page-id="home" data-loaded="0">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -97,6 +97,15 @@
     </style>
   </head>
   <body data-barba="wrapper">
+    <div class="lLoading" id="jsLoading" aria-hidden="true">
+      <div class="lLoading__info">
+        <p translate="no" class="p1">LOADING<br>----------------------------------------<br>Loading environment...<br>Transitioning to scene...</p>
+        <p class="p2">Assets : <span id="jsLoadCount">0</span> / <span id="jsLoadMax">1</span></p>
+        <div class="bar"><div class="bar__inner"><div class="progress" id="jsLoadProgress"></div></div></div>
+        <p class="p5" translate="no">_<br></p>
+      </div>
+    </div>
+
     <video id="rain-video" class="webgl-source-video" src="/assets/webgl/texture/tNormal-Rain.mp4" loop muted autoplay playsinline></video>
     <video id="bg-video-1" class="webgl-source-video" src="/assets/video/bgVideoI.mp4" loop muted autoplay playsinline></video>
     <canvas id="webgl-canvas"></canvas>
