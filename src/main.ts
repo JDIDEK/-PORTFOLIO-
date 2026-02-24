@@ -1,7 +1,4 @@
 import * as THREE from 'three';
-import barba from '@barba/core';
-import './transition.css';
-import aboutCssHref from './about.css?url';
 
 // --------------------------------------------------------
 // 1. SETUP THREE.JS (Mode Plein Écran)
@@ -277,7 +274,6 @@ function raf() {
 
   const gradient = maskCtx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, brushSize);
   gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.5)');
   gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
   
   maskCtx.beginPath();
@@ -292,8 +288,10 @@ function raf() {
 requestAnimationFrame(raf);
 
 // --------------------------------------------------------
-// 6. HELPERS UI + AUDIO
+// 6. EFFET GLITCH SUR LES LABELS UI
 // --------------------------------------------------------
+const glitchLabels = document.querySelectorAll<HTMLElement>('.label-fx');
+
 function setGlitchLabelText(label: HTMLElement, text: string): void {
   label.setAttribute('aria-label', text);
   label.textContent = '';
@@ -306,16 +304,14 @@ function setGlitchLabelText(label: HTMLElement, text: string): void {
   }
 }
 
-const refreshGlitchLabels = (): void => {
-  const glitchLabels = document.querySelectorAll<HTMLElement>('.label-fx');
-  glitchLabels.forEach((label) => {
-    const text = (label.textContent ?? '').trim();
-    setGlitchLabelText(label, text);
-  });
-};
+glitchLabels.forEach((label) => {
+  const text = (label.textContent ?? '').trim();
+  setGlitchLabelText(label, text);
+});
 
-refreshGlitchLabels();
-
+// --------------------------------------------------------
+// 7. AUDIO UI (SOUND TOGGLE + HOVER)
+// --------------------------------------------------------
 const hoverSoundSrc = '/assets/sounds/hover.mp3';
 let isSoundOn = false;
 let isAudioUnlocked = false;
@@ -345,31 +341,22 @@ const playHoverSound = (): void => {
   hoverSound.play().catch(() => {});
 };
 
-document.addEventListener('mouseover', (event) => {
-  const target = event.target as HTMLElement | null;
-  if (!target) return;
-  const hoverEl = target.closest('.js-audio-hover');
-  if (!hoverEl) return;
-
-  const related = event.relatedTarget as Node | null;
-  if (related && hoverEl.contains(related)) return;
-
-  playHoverSound();
+const hoverTargets = document.querySelectorAll<HTMLElement>('.js-audio-hover');
+hoverTargets.forEach((target) => {
+  target.addEventListener('mouseenter', playHoverSound);
 });
 
-document.addEventListener('click', (event) => {
-  const target = event.target as HTMLElement | null;
-  if (!target) return;
-  const soundToggleBtn = target.closest('#sound-toggle-btn') as HTMLElement | null;
-  if (!soundToggleBtn) return;
-
-  unlockAudio();
-  isSoundOn = !isSoundOn;
-  setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
-});
+const soundToggleBtn = document.querySelector<HTMLElement>('#sound-toggle-btn');
+if (soundToggleBtn) {
+  soundToggleBtn.addEventListener('click', () => {
+    unlockAudio();
+    isSoundOn = !isSoundOn;
+    setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
+  });
+}
 
 // --------------------------------------------------------
-// 7. REDIMENSIONNEMENT
+// 8. REDIMENSIONNEMENT
 // --------------------------------------------------------
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -388,124 +375,126 @@ window.addEventListener('resize', () => {
 });
 
 // --------------------------------------------------------
-// 8. LOGIQUE PAGE HOME
+// 9. LOGIQUE DU TERMINAL INTERACTIF (HISTORIQUE, TAB, NEOFETCH, RM)
 // --------------------------------------------------------
-type Cleanup = () => void;
+const openTermBtn = document.getElementById('open-terminal');
+const terminalModal = document.getElementById('terminal-modal');
+const closeTermBtn = document.getElementById('close-terminal');
+const termInput = document.getElementById('terminal-input') as HTMLInputElement;
+const termHistory = document.getElementById('terminal-history');
+const termBody = document.getElementById('terminal-body');
+const termHeader = document.querySelector('.terminal-header') as HTMLElement;
+const termWindow = document.querySelector('.terminal-window') as HTMLElement;
 
-const initHomeTerminal = (): Cleanup => {
-  const terminalModal = document.getElementById('terminal-modal');
-  const closeTermBtn = document.getElementById('close-terminal');
-  const termInput = document.getElementById('terminal-input') as HTMLInputElement | null;
-  const termHistory = document.getElementById('terminal-history');
-  const termBody = document.getElementById('terminal-body');
-  const termHeader = document.querySelector('.terminal-header') as HTMLElement | null;
-  const termWindow = document.querySelector('.terminal-window') as HTMLElement | null;
-
-  if (!terminalModal || !closeTermBtn || !termInput || !termHistory || !termBody || !termHeader || !termWindow) {
-    return () => {};
-  }
-
+if (openTermBtn && terminalModal && closeTermBtn && termInput && termHistory && termBody && termHeader && termWindow) {
+  const terminalModalEl = terminalModal;
+  
+  // --- VARIABLES D'HISTORIQUE ET ANIMATIONS ---
   const cmdHistory: string[] = [];
   let historyIndex = -1;
   const terminalIntervals: number[] = [];
+  let neofetchCallCount = 0;
+  const asciiFrameUrls = Array.from({ length: 51 }, (_, index) => {
+    return `/assets/frames/frame_${String(index + 1).padStart(3, '0')}.txt`;
+  });
+  let cachedAsciiFrames: string[] | null = null;
+  let asciiFramesLoadingPromise: Promise<string[]> | null = null;
 
-  const closeModal = (): void => {
-    terminalModal.classList.remove('active');
-    terminalIntervals.forEach((intervalId) => clearInterval(intervalId));
-    terminalIntervals.length = 0;
+  const loadAsciiFrames = async (): Promise<string[]> => {
+    if (cachedAsciiFrames) return cachedAsciiFrames;
+    if (asciiFramesLoadingPromise) return asciiFramesLoadingPromise;
+
+    asciiFramesLoadingPromise = Promise.all(
+      asciiFrameUrls.map(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Unable to load ASCII frame: ${url}`);
+        }
+        return (await response.text()).replace(/\r\n/g, '\n');
+      })
+    )
+      .then((frames) => {
+        cachedAsciiFrames = frames;
+        return frames;
+      })
+      .catch((error) => {
+        console.error(error);
+        return [];
+      })
+      .finally(() => {
+        asciiFramesLoadingPromise = null;
+      });
+
+    return asciiFramesLoadingPromise;
   };
 
-  const onOpenClick = (event: Event): void => {
-    const target = event.target as HTMLElement | null;
-    if (!target?.closest('#open-terminal')) return;
-    terminalModal.classList.add('active');
-    window.setTimeout(() => termInput.focus(), 100);
-  };
+  // --- VARIABLES D'AUTOCOMPLÉTION ---
+  const knownCommands = ['help', 'ls', 'clear', 'whoami', 'sudo', 'cd', 'cat', 'neofetch', 'rm'];
+  const knownFiles = ['about/', 'works/', 'contact.txt', 'matrix.sh'];
 
-  const onCloseClick = (): void => {
-    closeModal();
-  };
+  // Ouvre le terminal
+  openTermBtn.addEventListener('click', () => {
+    terminalModalEl.classList.add('active');
+    setTimeout(() => termInput.focus(), 100); 
+  });
 
-  const onBodyClick = (): void => {
-    termInput.focus();
+  // Ferme le terminal
+  const closeModal = () => {
+    terminalModalEl.classList.remove('active');
+    // On nettoie les animations (ex: neofetch) pour ne pas faire ramer le PC en arrière-plan
+    terminalIntervals.forEach(clearInterval);
+    terminalIntervals.length = 0; 
   };
+  closeTermBtn.addEventListener('click', closeModal);
 
+  // Focus automatique
+  termBody.addEventListener('click', () => termInput.focus());
+
+  // --- LOGIQUE DE DRAG & DROP ---
   let isDragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
 
-  const onMouseDownHeader = (event: MouseEvent): void => {
-    if ((event.target as HTMLElement).id === 'close-terminal') return;
+  termHeader.addEventListener('mousedown', (e) => {
+    if ((e.target as HTMLElement).id === 'close-terminal') return;
     isDragging = true;
     const rect = termWindow.getBoundingClientRect();
-    dragOffsetX = event.clientX - rect.left;
-    dragOffsetY = event.clientY - rect.top;
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
     termWindow.style.transform = 'none';
-    termWindow.style.left = `${rect.left}px`;
-    termWindow.style.top = `${rect.top}px`;
-  };
+    termWindow.style.left = rect.left + 'px';
+    termWindow.style.top = rect.top + 'px';
+  });
 
-  const onMouseMove = (event: MouseEvent): void => {
+  document.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
-    termWindow.style.left = `${event.clientX - dragOffsetX}px`;
-    termWindow.style.top = `${event.clientY - dragOffsetY}px`;
-  };
+    termWindow.style.left = (e.clientX - dragOffsetX) + 'px';
+    termWindow.style.top = (e.clientY - dragOffsetY) + 'px';
+  });
 
-  const onMouseUp = (): void => {
-    isDragging = false;
-  };
+  document.addEventListener('mouseup', () => { isDragging = false; });
 
-  const printLog = (html: string): void => {
-    const p = document.createElement('div');
-    p.innerHTML = html;
-    termHistory.appendChild(p);
-    termBody.scrollTop = termBody.scrollHeight;
-  };
+  // --- ÉCOUTE DES TOUCHES DU CLAVIER ---
+  termInput.addEventListener('keydown', (e) => {
+    // 1. AUTOCOMPLÉTION (TAB)
+    if (e.key === 'Tab') {
+      e.preventDefault(); 
+      const inputVal = termInput.value;
+      const args = inputVal.split(' ');
 
-  const executeCommand = (cmdText: string): void => {
-    printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span># ${cmdText}</div>`);
-    const args = cmdText.split(/\s+/).filter(Boolean);
-    const cmd = args[0];
-    const extraArgs = args.slice(1);
-
-    switch (cmd) {
-      case 'clear':
-        termHistory.innerHTML = '';
-        break;
-      case 'whoami':
-        printLog('root');
-        break;
-      case 'cd':
-        if (extraArgs.length === 0) {
-          printLog('');
-          break;
-        }
-        {
-          const target = extraArgs[0].replace(/\/$/, '');
-          if (['about', 'works'].includes(target)) {
-            printLog(`Navigating to <span class="t-blue">${target}</span>...`);
-            window.setTimeout(() => {
-              closeModal();
-              barba.go(`/${target}.html`);
-            }, 800);
-          } else {
-            printLog(`<span class="t-err">bash: cd: ${target}: No such file or directory</span>`);
-          }
-        }
-        break;
-      default:
-        printLog(`<span class="t-err">bash: ${cmd}: command not found</span>`);
-    }
-  };
-
-  const onInputKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'Tab') {
-      event.preventDefault();
+      if (args.length === 1) {
+        const match = knownCommands.find(c => c.startsWith(args[0].toLowerCase()));
+        if (match) termInput.value = match + ' ';
+      } else if (args.length === 2 && ['cd', 'cat', 'rm'].includes(args[0].toLowerCase())) {
+        const match = knownFiles.find(f => f.startsWith(args[1].toLowerCase()));
+        if (match) termInput.value = args[0] + ' ' + match;
+      }
       return;
     }
 
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
+    // 2. NAVIGATION HISTORIQUE (FLÈCHES)
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
       if (historyIndex > 0) {
         historyIndex--;
         termInput.value = cmdHistory[historyIndex];
@@ -513,8 +502,8 @@ const initHomeTerminal = (): Cleanup => {
       return;
     }
 
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
       if (historyIndex < cmdHistory.length - 1) {
         historyIndex++;
         termInput.value = cmdHistory[historyIndex];
@@ -525,419 +514,227 @@ const initHomeTerminal = (): Cleanup => {
       return;
     }
 
-    if (event.key !== 'Enter') return;
-
-    const cmdText = termInput.value.trim();
-    if (cmdText) {
-      cmdHistory.push(cmdText);
-      historyIndex = cmdHistory.length;
-      executeCommand(cmdText);
-    } else {
-      printLog('<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span>#</div>');
-    }
-    termInput.value = '';
-  };
-
-  document.addEventListener('click', onOpenClick);
-  closeTermBtn.addEventListener('click', onCloseClick);
-  termBody.addEventListener('click', onBodyClick);
-  termHeader.addEventListener('mousedown', onMouseDownHeader);
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-  termInput.addEventListener('keydown', onInputKeyDown);
-
-  return () => {
-    closeModal();
-    document.removeEventListener('click', onOpenClick);
-    closeTermBtn.removeEventListener('click', onCloseClick);
-    termBody.removeEventListener('click', onBodyClick);
-    termHeader.removeEventListener('mousedown', onMouseDownHeader);
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-    termInput.removeEventListener('keydown', onInputKeyDown);
-  };
-};
-
-// --------------------------------------------------------
-// 9. LOGIQUE PAGE ABOUT
-// --------------------------------------------------------
-const initAboutPage = (): Cleanup => {
-  const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.about-toc__item'));
-  const sectionElements = Array.from(document.querySelectorAll<HTMLElement>('[data-section]'));
-  const scrollbarRange = document.querySelector<HTMLInputElement>('#fixed-scrollbar-range');
-
-  if (tocLinks.length === 0 || sectionElements.length === 0) {
-    return () => {};
-  }
-
-  const cleanups: Cleanup[] = [];
-  const sectionById = new Map<string, HTMLElement>();
-
-  for (const section of sectionElements) {
-    const sectionId = section.dataset.section;
-    if (sectionId) sectionById.set(sectionId, section);
-  }
-
-  const setActiveToc = (sectionId: string): void => {
-    for (const link of tocLinks) {
-      const isActive = link.dataset.target === sectionId;
-      link.classList.toggle('is-active', isActive);
-      if (isActive) {
-        link.setAttribute('aria-current', 'true');
+    // 3. VALIDATION (ENTRÉE)
+    if (e.key === 'Enter') {
+      const cmdText = termInput.value.trim();
+      
+      if (cmdText) {
+        cmdHistory.push(cmdText);
+        historyIndex = cmdHistory.length;
+        executeCommand(cmdText);
       } else {
-        link.removeAttribute('aria-current');
+        printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span>#</div>`);
       }
+      termInput.value = '';
     }
-  };
+  });
 
-  for (const link of tocLinks) {
-    const onClick = (event: Event): void => {
-      event.preventDefault();
-      const targetId = link.dataset.target;
-      if (!targetId) return;
-
-      const section = sectionById.get(targetId);
-      if (!section) return;
-
-      section.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-        block: 'start'
-      });
-      setActiveToc(targetId);
-    };
-
-    link.addEventListener('click', onClick);
-    cleanups.push(() => link.removeEventListener('click', onClick));
+  function printLog(html: string) {
+    const p = document.createElement('div');
+    p.innerHTML = html;
+    termHistory!.appendChild(p);
+    termBody!.scrollTop = termBody!.scrollHeight;
   }
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      let candidate: string | null = null;
-      let maxRatio = 0;
+  function executeCommand(cmdText: string) {
+    printLog(`<div class="cmd-echo"><span class="term-user">root@josselin</span>:<span class="term-path">~</span># ${cmdText}</div>`);
+    
+    const args = cmdText.split(/\s+/).filter(Boolean);
+    const cmd = args[0]; // Strict mode (case sensitive)
+    const extraArgs = args.slice(1);
 
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        if (entry.intersectionRatio >= maxRatio) {
-          maxRatio = entry.intersectionRatio;
-          candidate = (entry.target as HTMLElement).dataset.section ?? null;
+    switch (cmd) {
+      case 'help':
+        printLog(`Available commands:
+        <br/>- <span class="t-warn">ls</span> : List directory contents
+        <br/>- <span class="t-warn">cd [dir]</span> : Change directory
+        <br/>- <span class="t-warn">whoami</span> : Print effective user id
+        <br/>- <span class="t-warn">clear</span> : Clear terminal screen
+        <br/>- <span class="t-warn">cat [file]</span> : Concatenate files and print
+        <br/>- <span class="t-warn">neofetch</span> : Print system information`);
+        break;
+      
+      case 'ls':
+        if (extraArgs.length > 0) printLog(`<span class="t-err">ls: cannot access '${extraArgs[0]}': No such file or directory</span>`);
+        else printLog(`<span class="t-blue">about</span>&nbsp;&nbsp;&nbsp;<span class="t-blue">works</span>&nbsp;</span>&nbsp;&nbsp;&nbsp;contact.txt&nbsp;&nbsp;&nbsp;<span class="t-green">matrix.sh*</span>`);
+        break;
+      
+      case 'clear':
+        termHistory!.innerHTML = '';
+        break;
+      
+      case 'whoami':
+        if (extraArgs.length > 0) printLog(`whoami: extra operand '${extraArgs[0]}'<br/>Try 'whoami --help' for more information.`);
+        else printLog('root');
+        break;
+      
+      case 'sudo':
+        printLog(`root@josselin is not in the sudoers file.<br/><span class="t-err">This incident will be reported.</span>`);
+        break;
+
+      case 'cd':
+        if (extraArgs.length === 0) printLog('');
+        else if (extraArgs.length > 1) printLog(`<span class="t-err">bash: cd: too many arguments</span>`);
+        else {
+          const target = extraArgs[0].replace(/\/$/, '');
+          if (['about', 'works'].includes(target)) {
+            printLog(`Navigating to <span class="t-blue">${target}</span>...`);
+            setTimeout(() => { closeModal(); }, 800);
+          } else {
+            printLog(`<span class="t-err">bash: cd: ${target}: No such file or directory</span>`);
+          }
         }
-      }
+        break;
+      
+      case 'cat':
+        if (extraArgs.length === 0) printLog(`<span class="t-err">cat: missing operand</span><br/>Try 'cat --help' for more information.`);
+        else {
+          const file = extraArgs[0];
+          if (file === 'contact.txt') printLog('Email: contact@didev.fr<br/>Github: https://github.com/JDIDEK');
+          else if (file === 'matrix.sh') printLog(`<span class="t-err">bash: ./matrix.sh: Permission denied.</span>`);
+          else printLog(`<span class="t-err">cat: ${file}: No such file or directory</span>`);
+        }
+        break;
 
-      if (candidate) setActiveToc(candidate);
-    },
-    {
-      root: null,
-      threshold: [0.25, 0.4, 0.6, 0.8],
-      rootMargin: '-20% 0px -45% 0px'
+      // ----------------------------------------------------
+      // L'EASTER EGG NEOFETCH : ANIMATION ASCII DEPUIS /assets/frames
+      // ----------------------------------------------------
+      case 'neofetch':
+        neofetchCallCount++;
+        const animId = `ascii-anim-${neofetchCallCount}`;
+
+        // Injection du conteneur HTML
+        printLog(`
+          <div style="display: flex; gap: 25px; align-items: center; margin-top: 15px; margin-bottom: 15px;">
+            <div id="${animId}" style="color: #ff0000; white-space: pre; font-family: monospace; font-weight: bold; text-shadow: 0 0 8px rgba(255,0,0,0.7); font-size: 1.1em; line-height: 1.1; min-height: 120px; min-width: 200px;"></div>
+            <div>
+              -------------------<br/>
+              <span class="t-blue">OS</span>: Josselin_OS (Cyberpunk Kernel)<br/>
+              <span class="t-blue">Net</span>: LINK_ESTABLISHED // SECURE<br/>
+              <span class="t-blue">Role</span>: Creative Developer & Breaker<br/>
+              <span class="t-blue">Status</span>: <span class="t-green" style="text-shadow: 0 0 5px #8ae234;">System Stable (mostly)</span><br/>
+              <span class="t-blue">Shell</span>: bash v5.0 (infected)<br/>
+            </div>
+          </div>
+        `);
+
+        setTimeout(() => {
+          const animTarget = document.getElementById(animId);
+          if (animTarget) {
+            void loadAsciiFrames().then((frames) => {
+              if (!frames.length) {
+                animTarget.textContent = '\n[ASCII animation unavailable]\n';
+                termBody!.scrollTop = termBody!.scrollHeight;
+                return;
+              }
+
+              let frameIndex = 0;
+              animTarget.textContent = `\n${frames[frameIndex]}\n`;
+              termBody!.scrollTop = termBody!.scrollHeight;
+
+              const interval = setInterval(() => {
+                if (!terminalModalEl.classList.contains('active')) {
+                  clearInterval(interval);
+                  return;
+                }
+                frameIndex = (frameIndex + 1) % frames.length;
+                animTarget.textContent = `\n${frames[frameIndex]}\n`;
+                termBody!.scrollTop = termBody!.scrollHeight;
+              }, 80) as unknown as number;
+
+              terminalIntervals.push(interval);
+            });
+          }
+        }, 50);
+        break;
+
+      // ----------------------------------------------------
+      // LA SÉQUENCE D'AUTODESTRUCTION RM -RF /
+      // ----------------------------------------------------
+      case 'rm':
+        if (extraArgs.join(' ') === '-rf /' || extraArgs.join(' ') === '-rf /*') {
+          termInput.disabled = true;
+          termInput.value = '';
+          termInput.placeholder = 'SYSTEM CORRUPTED...';
+          
+          let delay = 20;
+          let count = 0;
+          const fakeFiles = [
+            '/boot/vmlinuz-linux', '/etc/fstab', '/usr/bin/sudo', '/usr/lib/systemd',
+            '/var/log/syslog', '/dev/sda1', '/usr/local/bin/node', '/home/josselin/portfolio/index.html',
+            '/sys/firmware/efi', '/dev/null', '...'
+          ];
+
+          // Son du clavier (s'assure que l'élément est trouvé/créé)
+          const keyboardSound = new Audio('/assets/sounds/keyboard.mp3');
+
+          const nukeSystem = () => {
+            if (count < 25) {
+              const file = fakeFiles[count % fakeFiles.length];
+              printLog(`rm: cannot remove '${file}': Device or resource busy`);
+              if (count > 5) printLog(`rm: removing directory '${file}'`);
+              
+              delay += 15; 
+              count++;
+              setTimeout(nukeSystem, delay);
+            } else {
+              printLog(`<br/><span class="t-err" style="font-size: 1.1em; font-weight: bold;">Segmentation fault (core dumped)</span>`);
+              printLog(`<span class="t-warn">Kernel panic - not syncing: Attempted to kill init!</span>`);
+              
+              termWindow.style.animation = 'neon-heavy-flicker 0.2s infinite';
+              
+              setTimeout(() => {
+                // Écran de crash GRUB
+                document.body.innerHTML = `
+                  <div style="background:#000; color:#ccc; width:100vw; height:100vh; display:flex; flex-direction:column; padding: 20px; font-family: 'Courier New', monospace; box-sizing: border-box; margin: 0;">
+                    <p>GRUB loading.</p>
+                    <p>Welcome to GRUB!</p>
+                    <p style="color: #ff0000; margin-top: 20px;">error: no such partition.</p>
+                    <p style="color: #ff0000;">Entering rescue mode...</p>
+                    <div style="display: flex; align-items: center; margin-top: 10px;">
+                      <span>grub rescue> </span>
+                      <span id="grub-text" style="margin-left: 8px;"></span>
+                      <span class="term-cursor" style="color: #fff; margin-left: 2px;">_</span>
+                    </div>
+                  </div>
+                `;
+
+                const message = "Fatal error. File system destroyed. Please refresh the page to reboot.";
+                const grubTextEl = document.getElementById('grub-text');
+                let charIndex = 0;
+
+                const typeWriter = () => {
+                  if (charIndex < message.length) {
+                    grubTextEl!.textContent += message.charAt(charIndex);
+                    
+                    // On vérifie si l'audio est débloqué par le code de l'étape 7
+                    // @ts-ignore - Ignore l'erreur TS car isSoundOn est déclaré plus haut dans le main.ts
+                    if (typeof isSoundOn !== 'undefined' && isSoundOn && isAudioUnlocked) {
+                      const click = keyboardSound.cloneNode() as HTMLAudioElement;
+                      click.volume = 0.3 + Math.random() * 0.2;
+                      click.play().catch(() => {});
+                    }
+
+                    charIndex++;
+                    setTimeout(typeWriter, Math.random() * 100 + 50); 
+                  }
+                };
+
+                setTimeout(typeWriter, 1500);
+
+              }, 2500);
+            }
+          };
+          
+          nukeSystem();
+
+        } else {
+          printLog(`rm: cannot remove '${extraArgs.join(' ')}': Permission denied`);
+        }
+        break;
+
+      default:
+        printLog(`<span class="t-err">bash: ${cmd}: command not found</span>`);
     }
-  );
-
-  for (const section of sectionElements) {
-    observer.observe(section);
   }
-  cleanups.push(() => observer.disconnect());
-
-  if (tocLinks.length > 0) {
-    setActiveToc(tocLinks[0].dataset.target ?? '');
-  }
-
-  if (scrollbarRange) {
-    const setScrollbarValueFromScroll = (): void => {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (maxScroll <= 0) {
-        scrollbarRange.value = '0';
-        scrollbarRange.disabled = true;
-        return;
-      }
-      scrollbarRange.disabled = false;
-      const ratio = window.scrollY / maxScroll;
-      scrollbarRange.value = String(Math.round(ratio * 1000));
-    };
-
-    const scrollToRangePosition = (): void => {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (maxScroll <= 0) return;
-      const ratio = Number(scrollbarRange.value) / 1000;
-      window.scrollTo({
-        top: ratio * maxScroll,
-        behavior: 'auto'
-      });
-    };
-
-    scrollbarRange.addEventListener('input', scrollToRangePosition);
-    scrollbarRange.addEventListener('change', scrollToRangePosition);
-    window.addEventListener('scroll', setScrollbarValueFromScroll, { passive: true });
-    window.addEventListener('resize', setScrollbarValueFromScroll);
-    setScrollbarValueFromScroll();
-
-    cleanups.push(() => {
-      scrollbarRange.removeEventListener('input', scrollToRangePosition);
-      scrollbarRange.removeEventListener('change', scrollToRangePosition);
-      window.removeEventListener('scroll', setScrollbarValueFromScroll);
-      window.removeEventListener('resize', setScrollbarValueFromScroll);
-    });
-  }
-
-  return () => {
-    for (const cleanup of cleanups) cleanup();
-  };
-};
-
-// --------------------------------------------------------
-// 10. ORCHESTRATION PAGES + TRANSITIONS
-// --------------------------------------------------------
-let currentPageCleanup: Cleanup | null = null;
-const rootEl = document.documentElement;
-const loadingContainer = document.getElementById('jsLoading');
-const loadingCountEl = document.getElementById('jsLoadCount');
-const loadingMaxEl = document.getElementById('jsLoadMax');
-const loadingProgressEl = document.getElementById('jsLoadProgress') as HTMLElement | null;
-let loadingCount = 0;
-const loadingMax = Number(loadingMaxEl?.textContent ?? '1');
-let aboutStyleLink = document.querySelector<HTMLLinkElement>('link[data-about-style="1"]');
-let distortionTurbulence: SVGFETurbulenceElement | null = null;
-let distortionDisplacement: SVGFEDisplacementMapElement | null = null;
-
-const wait = (ms: number): Promise<void> => new Promise((resolve) => {
-  window.setTimeout(resolve, ms);
-});
-
-const ensureDistortionFilter = (): void => {
-  if (distortionTurbulence && distortionDisplacement) return;
-
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.classList.add('page-distortion-defs');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-
-  const filter = document.createElementNS(NS, 'filter');
-  filter.setAttribute('id', 'page-distort-filter');
-  filter.setAttribute('x', '-20%');
-  filter.setAttribute('y', '-20%');
-  filter.setAttribute('width', '140%');
-  filter.setAttribute('height', '140%');
-  filter.setAttribute('color-interpolation-filters', 'sRGB');
-
-  const turbulence = document.createElementNS(NS, 'feTurbulence');
-  turbulence.setAttribute('type', 'fractalNoise');
-  turbulence.setAttribute('baseFrequency', '0.008 0.03');
-  turbulence.setAttribute('numOctaves', '1');
-  turbulence.setAttribute('seed', '7');
-  turbulence.setAttribute('result', 'noise');
-
-  const displacement = document.createElementNS(NS, 'feDisplacementMap');
-  displacement.setAttribute('in', 'SourceGraphic');
-  displacement.setAttribute('in2', 'noise');
-  displacement.setAttribute('scale', '0');
-  displacement.setAttribute('xChannelSelector', 'R');
-  displacement.setAttribute('yChannelSelector', 'G');
-
-  filter.appendChild(turbulence);
-  filter.appendChild(displacement);
-  svg.appendChild(filter);
-  document.body.appendChild(svg);
-
-  distortionTurbulence = turbulence;
-  distortionDisplacement = displacement;
-};
-
-const runDistortionPhase = (target: HTMLElement, phase: 'out' | 'in'): Promise<void> => new Promise((resolve) => {
-  ensureDistortionFilter();
-  if (!distortionTurbulence || !distortionDisplacement) {
-    resolve();
-    return;
-  }
-
-  const duration = phase === 'out' ? 420 : 480;
-  const start = performance.now();
-  target.classList.add('is-distorting-page');
-
-  const rafStep = (now: number): void => {
-    const t = Math.min(1, (now - start) / duration);
-    const easeOut = 1 - Math.pow(1 - t, 3);
-    const strength = phase === 'out' ? easeOut : 1 - easeOut;
-
-    const freqX = 0.008 + strength * 0.05;
-    const freqY = 0.03 + strength * 0.2;
-    const scale = Math.round(130 * strength);
-    const jitterAmp = 2 + 10 * strength;
-    const jitterX = Math.sin((t + 0.15) * 40) * jitterAmp;
-    const jitterY = Math.cos((t + 0.11) * 34) * jitterAmp * 0.7;
-
-    distortionTurbulence!.setAttribute('baseFrequency', `${freqX.toFixed(4)} ${freqY.toFixed(4)}`);
-    distortionDisplacement!.setAttribute('scale', `${scale}`);
-
-    target.style.filter = 'url(#page-distort-filter)';
-    target.style.transform = `translate3d(${jitterX.toFixed(2)}px, ${jitterY.toFixed(2)}px, 0)`;
-    target.style.opacity = '1';
-
-    if (t < 1) {
-      requestAnimationFrame(rafStep);
-      return;
-    }
-
-    distortionDisplacement!.setAttribute('scale', '0');
-    distortionTurbulence!.setAttribute('baseFrequency', '0.008 0.03');
-    target.style.filter = '';
-    target.style.transform = '';
-    target.style.opacity = '';
-    target.classList.remove('is-distorting-page');
-    resolve();
-  };
-
-  requestAnimationFrame(rafStep);
-});
-
-const waitForStylesheet = (linkEl: HTMLLinkElement): Promise<void> => new Promise((resolve) => {
-  const sheet = linkEl.sheet as CSSStyleSheet | null;
-  if (sheet) {
-    resolve();
-    return;
-  }
-
-  linkEl.addEventListener('load', () => resolve(), { once: true });
-  linkEl.addEventListener('error', () => resolve(), { once: true });
-});
-
-const setAboutStylesEnabled = async (enabled: boolean): Promise<void> => {
-  if (!enabled) {
-    if (aboutStyleLink) aboutStyleLink.disabled = true;
-    return;
-  }
-
-  if (!aboutStyleLink) {
-    aboutStyleLink = document.createElement('link');
-    aboutStyleLink.rel = 'stylesheet';
-    aboutStyleLink.href = aboutCssHref;
-    aboutStyleLink.dataset.aboutStyle = '1';
-    document.head.appendChild(aboutStyleLink);
-  }
-
-  aboutStyleLink.disabled = false;
-  await waitForStylesheet(aboutStyleLink);
-};
-
-const addLoadedCounter = (): void => {
-  loadingCount = Math.min(loadingMax, loadingCount + 1);
-  if (loadingCountEl) {
-    loadingCountEl.textContent = String(loadingCount);
-  }
-  if (loadingProgressEl) {
-    const progress = loadingMax > 0 ? loadingCount / loadingMax : 1;
-    loadingProgressEl.style.transform = `scaleX(${progress})`;
-  }
-};
-
-const setLoadingComplete = (): void => {
-  loadingContainer?.setAttribute('data-complete', '1');
-};
-
-const removeLoading = (): void => {
-  loadingContainer?.remove();
-};
-
-const updateActiveMenu = (namespace: string | null): void => {
-  const navLinks = document.querySelectorAll<HTMLAnchorElement>('.side-nav a');
-  navLinks.forEach((link) => {
-    link.classList.remove('active');
-    link.removeAttribute('aria-current');
-  });
-
-  const activeHref = namespace === 'about' ? '/about.html' : '/index.html';
-  const activeLink = Array.from(navLinks).find((link) => {
-    const href = link.getAttribute('href');
-    if (!href) return false;
-    return href === activeHref || (namespace === 'home' && href === '/');
-  });
-
-  if (activeLink) {
-    activeLink.classList.add('active');
-    activeLink.setAttribute('aria-current', 'page');
-  }
-};
-
-const setupPage = async (namespace: string | null): Promise<void> => {
-  await setAboutStylesEnabled(namespace === 'about');
-  rootEl.dataset.pageId = namespace ?? 'home';
-  refreshGlitchLabels();
-  updateActiveMenu(namespace);
-
-  if (currentPageCleanup) {
-    currentPageCleanup();
-    currentPageCleanup = null;
-  }
-
-  if (namespace === 'about') {
-    currentPageCleanup = initAboutPage();
-    return;
-  }
-
-  currentPageCleanup = initHomeTerminal();
-};
-
-const getCurrentNamespace = (): string | null => {
-  const container = document.querySelector<HTMLElement>('[data-barba="container"]');
-  return container?.dataset.barbaNamespace ?? null;
-};
-
-if (!rootEl.dataset.loaded) rootEl.dataset.loaded = '0';
-if (!rootEl.dataset.pageId) {
-  rootEl.dataset.pageId = getCurrentNamespace() ?? 'home';
 }
-
-barba.init({
-  sync: false,
-  debug: false,
-  preventRunning: true,
-  timeout: 5000,
-  transitions: [{
-    name: 'shoya-like',
-    async once(data: any) {
-      window.scrollTo(0, 0);
-      rootEl.dataset.loaded = '0';
-      await setupPage(data.next.namespace ?? getCurrentNamespace());
-      addLoadedCounter();
-      setLoadingComplete();
-      rootEl.dataset.once = '1';
-      await wait(300);
-      rootEl.dataset.loaded = '1';
-      await wait(100);
-      await wait(400);
-      removeLoading();
-    },
-    async beforeLeave() {
-      rootEl.dataset.transitioning = '1';
-      if (currentPageCleanup) {
-        currentPageCleanup();
-        currentPageCleanup = null;
-      }
-      await wait(40);
-    },
-    async leave() {
-      const pageRoot = document.body;
-      if (!pageRoot) {
-        await wait(120);
-        return;
-      }
-      await runDistortionPhase(pageRoot, 'out');
-    },
-    async beforeEnter(data: any) {
-      const nextNamespace = data.next.namespace ?? 'home';
-      rootEl.dataset.pageId = nextNamespace;
-      await setAboutStylesEnabled(nextNamespace === 'about');
-    },
-    async enter() {
-      window.scrollTo(0, 0);
-      const pageRoot = document.body;
-      if (!pageRoot) return;
-      await runDistortionPhase(pageRoot, 'in');
-    },
-    async after(data: any) {
-      window.scrollTo(0, 0);
-      await setupPage(data.next.namespace ?? getCurrentNamespace());
-      await wait(100);
-      rootEl.dataset.transitioning = '0';
-    }
-  }]
-});
