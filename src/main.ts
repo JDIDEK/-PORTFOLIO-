@@ -1,4 +1,243 @@
 import * as THREE from 'three';
+import './transition.css';
+
+const PAGE_GLITCH_STORAGE_KEY = 'page-glitch-enter';
+const PAGE_GLITCH_LEAVE_MS = 240;
+const PAGE_GLITCH_ENTER_MS = 620;
+let isPageTransitioning = false;
+
+function ensurePageGlitchOverlay(): void {
+  if (document.querySelector('.page-glitch-overlay')) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'page-glitch-overlay';
+  overlay.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(overlay);
+}
+
+function clearPageTransitionState(): void {
+  document.documentElement.removeAttribute('data-transitioning');
+  document.body.classList.remove('is-page-transitioning', 'is-page-entering', 'is-distorting-page');
+}
+
+function runPageEnterGlitch(): void {
+  if (sessionStorage.getItem(PAGE_GLITCH_STORAGE_KEY) !== '1') return;
+  sessionStorage.removeItem(PAGE_GLITCH_STORAGE_KEY);
+
+  ensurePageGlitchOverlay();
+  document.documentElement.setAttribute('data-transitioning', '1');
+  document.body.classList.add('is-page-entering', 'is-distorting-page');
+
+  window.setTimeout(() => {
+    document.body.classList.remove('is-page-entering', 'is-distorting-page');
+    document.documentElement.removeAttribute('data-transitioning');
+  }, PAGE_GLITCH_ENTER_MS);
+}
+
+function startPageGlitchNavigation(nextUrl: string): void {
+  if (isPageTransitioning) return;
+  isPageTransitioning = true;
+
+  ensurePageGlitchOverlay();
+  document.documentElement.setAttribute('data-transitioning', '1');
+  document.body.classList.add('is-page-transitioning', 'is-distorting-page');
+  playTransitionGlitchSound();
+
+  window.setTimeout(() => {
+    sessionStorage.setItem(PAGE_GLITCH_STORAGE_KEY, '1');
+    window.location.assign(nextUrl);
+  }, PAGE_GLITCH_LEAVE_MS);
+}
+
+function normalizeTransitionPathname(pathname: string): string {
+  const normalized = pathname.endsWith('/') ? pathname : `${pathname}/`;
+  return normalized.replace(/index\.html\/$/i, '/');
+}
+
+function shouldHandlePageGlitchNavigation(url: URL, anchor: HTMLAnchorElement): boolean {
+  if (anchor.dataset.noTransition === '1' || anchor.classList.contains('ignore-transition')) {
+    return false;
+  }
+  if (anchor.target && anchor.target !== '_self') {
+    return false;
+  }
+  if (anchor.hasAttribute('download')) {
+    return false;
+  }
+  if (url.origin !== window.location.origin) {
+    return false;
+  }
+  const isSamePathAndQuery =
+    normalizeTransitionPathname(url.pathname) === normalizeTransitionPathname(window.location.pathname) &&
+    url.search === window.location.search;
+  if (isSamePathAndQuery) {
+    return false;
+  }
+  return true;
+}
+
+function initPageGlitchTransitions(): void {
+  ensurePageGlitchOverlay();
+  runPageEnterGlitch();
+
+  window.addEventListener('pageshow', () => {
+    if (!isPageTransitioning && !document.body.classList.contains('is-page-entering')) {
+      clearPageTransitionState();
+    }
+  });
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!(event instanceof MouseEvent)) return;
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const url = new URL(anchor.href, window.location.href);
+      if (!shouldHandlePageGlitchNavigation(url, anchor)) return;
+
+      event.preventDefault();
+      startPageGlitchNavigation(url.href);
+    },
+    { capture: true }
+  );
+}
+
+initPageGlitchTransitions();
+
+const loadingRootEl = document.documentElement;
+const loadingEl = document.querySelector<HTMLElement>('#jsLoading');
+const loadingCountEl = document.querySelector<HTMLElement>('#jsLoadCount');
+const loadingMaxEl = document.querySelector<HTMLElement>('#jsLoadMax');
+const loadingProgressEl = document.querySelector<HTMLElement>('#jsLoadProgress');
+
+const LOADING_MIN_VISIBLE_MS = 360;
+const LOADING_FORCE_FINISH_MS = 4200;
+const LOADING_TASKS = [
+  'boot',
+  'window',
+  'texture-metal-normal',
+  'texture-metal-roughness',
+  'video-rain',
+  'video-background'
+] as const;
+
+type LoadingTaskName = (typeof LOADING_TASKS)[number];
+
+const loadingTasks = new Map<LoadingTaskName, boolean>(
+  LOADING_TASKS.map((task) => [task, false] as const)
+);
+const loadingStartedAt = performance.now();
+let isLoadingFinalized = false;
+let isLoadingFinishingScheduled = false;
+
+function updateLoadingUi(): void {
+  let resolved = 0;
+  for (const value of loadingTasks.values()) {
+    if (value) resolved++;
+  }
+
+  const total = loadingTasks.size;
+  const ratio = total > 0 ? resolved / total : 1;
+
+  if (loadingCountEl) loadingCountEl.textContent = String(resolved);
+  if (loadingMaxEl) loadingMaxEl.textContent = String(total);
+  if (loadingProgressEl) loadingProgressEl.style.transform = `scaleX(${ratio})`;
+}
+
+function areAllLoadingTasksResolved(): boolean {
+  for (const isResolved of loadingTasks.values()) {
+    if (!isResolved) return false;
+  }
+  return true;
+}
+
+function finishLoading(force = false): void {
+  if (isLoadingFinalized || isLoadingFinishingScheduled) return;
+  if (!force && !areAllLoadingTasksResolved()) return;
+
+  if (force) {
+    for (const taskName of loadingTasks.keys()) {
+      loadingTasks.set(taskName, true);
+    }
+    updateLoadingUi();
+  }
+
+  const elapsed = performance.now() - loadingStartedAt;
+  const waitTime = Math.max(0, LOADING_MIN_VISIBLE_MS - elapsed);
+  isLoadingFinishingScheduled = true;
+
+  window.setTimeout(() => {
+    if (isLoadingFinalized) return;
+
+    isLoadingFinalized = true;
+    isLoadingFinishingScheduled = false;
+    loadingEl?.setAttribute('data-complete', '1');
+    loadingRootEl.dataset.loaded = '1';
+    loadingRootEl.dataset.once = '1';
+
+    window.setTimeout(() => {
+      loadingEl?.setAttribute('aria-hidden', 'true');
+    }, 420);
+  }, waitTime);
+}
+
+function resolveLoadingTask(taskName: LoadingTaskName): void {
+  if (isLoadingFinalized) return;
+  if (!loadingTasks.has(taskName)) return;
+  if (loadingTasks.get(taskName)) return;
+
+  loadingTasks.set(taskName, true);
+  updateLoadingUi();
+  finishLoading();
+}
+
+function watchVideoReady(video: HTMLVideoElement, taskName: LoadingTaskName): void {
+  let isResolved = false;
+  const markReady = (): void => {
+    if (isResolved) return;
+    isResolved = true;
+    resolveLoadingTask(taskName);
+  };
+
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    markReady();
+    return;
+  }
+
+  video.addEventListener('loadeddata', markReady, { once: true });
+  video.addEventListener('canplay', markReady, { once: true });
+  video.addEventListener('error', markReady, { once: true });
+  window.setTimeout(markReady, 1400);
+}
+
+loadingRootEl.dataset.loaded = '0';
+updateLoadingUi();
+
+requestAnimationFrame(() => {
+  resolveLoadingTask('boot');
+});
+
+if (document.readyState === 'complete') {
+  resolveLoadingTask('window');
+} else {
+  window.addEventListener(
+    'load',
+    () => {
+      resolveLoadingTask('window');
+    },
+    { once: true }
+  );
+}
+
+window.setTimeout(() => {
+  finishLoading(true);
+}, LOADING_FORCE_FINISH_MS);
 
 // --------------------------------------------------------
 // 1. SETUP THREE.JS (Mode Plein Écran)
@@ -71,17 +310,29 @@ function configureVideoPlayback(video: HTMLVideoElement, fallbackSources: string
 // --------------------------------------------------------
 const textureLoader = new THREE.TextureLoader();
 
-const tMetalNormal = textureLoader.load('/assets/webgl/texture/tMetalNormal.webp');
-const tMetalRoughness = textureLoader.load('/assets/webgl/texture/tMetalRoughness.webp');
+const tMetalNormal = textureLoader.load(
+  '/assets/webgl/texture/tMetalNormal.webp',
+  () => resolveLoadingTask('texture-metal-normal'),
+  undefined,
+  () => resolveLoadingTask('texture-metal-normal')
+);
+const tMetalRoughness = textureLoader.load(
+  '/assets/webgl/texture/tMetalRoughness.webp',
+  () => resolveLoadingTask('texture-metal-roughness'),
+  undefined,
+  () => resolveLoadingTask('texture-metal-roughness')
+);
 tMetalNormal.wrapS = THREE.RepeatWrapping; tMetalNormal.wrapT = THREE.RepeatWrapping;
 tMetalRoughness.wrapS = THREE.RepeatWrapping; tMetalRoughness.wrapT = THREE.RepeatWrapping;
 
 const rainVideoEl = document.querySelector<HTMLVideoElement>('#rain-video')!;
+watchVideoReady(rainVideoEl, 'video-rain');
 configureVideoPlayback(rainVideoEl, ['/assets/webgl/texture/tNormal-Rain812d.mp4']);
 const tNormalRain = new THREE.VideoTexture(rainVideoEl);
 tNormalRain.wrapS = THREE.RepeatWrapping; tNormalRain.wrapT = THREE.RepeatWrapping;
 
 const bgVideoEl1 = document.querySelector<HTMLVideoElement>('#bg-video-1')!;
+watchVideoReady(bgVideoEl1, 'video-background');
 configureVideoPlayback(bgVideoEl1, [
   '/assets/webgl/texture/tNormal-Rain812d.mp4',
   '/assets/webgl/texture/tNormal-Rain.mp4'
@@ -313,8 +564,87 @@ glitchLabels.forEach((label) => {
 // 7. AUDIO UI (SOUND TOGGLE + HOVER)
 // --------------------------------------------------------
 const hoverSoundSrc = '/assets/sounds/hover.mp3';
-let isSoundOn = false;
+const rainSoundSrc = '/assets/sounds/rain.mp3';
+const glitchSoundSources = ['/assets/sounds/glitch.mp3', hoverSoundSrc] as const;
+const SOUND_PREF_KEY = 'portfolio:sound-enabled';
+
+function getStoredSoundPreference(): boolean {
+  try {
+    return window.localStorage.getItem(SOUND_PREF_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function persistSoundPreference(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(SOUND_PREF_KEY, enabled ? '1' : '0');
+  } catch {}
+}
+
+let isSoundOn = getStoredSoundPreference();
 let isAudioUnlocked = false;
+let rainLoopAudio: HTMLAudioElement | null = null;
+
+function playOneShotSound(
+  sources: readonly string[],
+  volume: number,
+  playbackRate = 1
+): void {
+  if (!sources.length) return;
+
+  const playFromIndex = (sourceIndex: number): void => {
+    if (sourceIndex >= sources.length) return;
+
+    const source = sources[sourceIndex];
+    const audio = new Audio(source);
+    audio.volume = volume;
+    audio.playbackRate = playbackRate;
+    audio.preload = 'auto';
+
+    audio.addEventListener(
+      'error',
+      () => {
+        playFromIndex(sourceIndex + 1);
+      },
+      { once: true }
+    );
+
+    audio.play().catch(() => {
+      playFromIndex(sourceIndex + 1);
+    });
+  };
+
+  playFromIndex(0);
+}
+
+function ensureRainLoopAudio(): HTMLAudioElement {
+  if (rainLoopAudio) return rainLoopAudio;
+
+  rainLoopAudio = new Audio(rainSoundSrc);
+  rainLoopAudio.loop = true;
+  rainLoopAudio.volume = 0.22;
+  rainLoopAudio.preload = 'auto';
+
+  return rainLoopAudio;
+}
+
+function startRainLoop(): void {
+  if (!isSoundOn || !isAudioUnlocked) return;
+  const rainAudio = ensureRainLoopAudio();
+  rainAudio.play().catch(() => {});
+}
+
+function stopRainLoop(): void {
+  if (!rainLoopAudio) return;
+  rainLoopAudio.pause();
+  rainLoopAudio.currentTime = 0;
+}
+
+function playTransitionGlitchSound(): void {
+  if (!isSoundOn || !isAudioUnlocked) return;
+  playOneShotSound(glitchSoundSources, 0.5, 1.2);
+}
 
 const unlockAudio = (): void => {
   if (isAudioUnlocked) return;
@@ -325,6 +655,7 @@ const unlockAudio = (): void => {
       unlockProbe.pause();
       unlockProbe.currentTime = 0;
       isAudioUnlocked = true;
+      if (isSoundOn) startRainLoop();
       window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     })
@@ -336,9 +667,7 @@ window.addEventListener('keydown', unlockAudio);
 
 const playHoverSound = (): void => {
   if (!isSoundOn || !isAudioUnlocked) return;
-  const hoverSound = new Audio(hoverSoundSrc);
-  hoverSound.volume = 0.5;
-  hoverSound.play().catch(() => {});
+  playOneShotSound([hoverSoundSrc], 0.5);
 };
 
 const hoverTargets = document.querySelectorAll<HTMLElement>('.js-audio-hover');
@@ -348,12 +677,30 @@ hoverTargets.forEach((target) => {
 
 const soundToggleBtn = document.querySelector<HTMLElement>('#sound-toggle-btn');
 if (soundToggleBtn) {
+  setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
+
   soundToggleBtn.addEventListener('click', () => {
     unlockAudio();
     isSoundOn = !isSoundOn;
+    persistSoundPreference(isSoundOn);
     setGlitchLabelText(soundToggleBtn, isSoundOn ? 'Sound: On' : 'Sound: Off');
+    if (isSoundOn) {
+      startRainLoop();
+    } else {
+      stopRainLoop();
+    }
   });
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopRainLoop();
+  } else if (isSoundOn) {
+    startRainLoop();
+  }
+});
+
+window.addEventListener('pagehide', stopRainLoop);
 
 // --------------------------------------------------------
 // 8. REDIMENSIONNEMENT
