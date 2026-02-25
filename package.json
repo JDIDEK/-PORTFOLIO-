@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
   },
   "devDependencies": {
     "@types/three": "^0.183.0",
+    "astro": "^5.17.3",
     "typescript": "~5.9.3",
     "vite": "^7.3.1"
   },

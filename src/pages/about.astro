@@ -1,0 +1,96 @@
+---
+import '../styles/pages/about.css';
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+  title="About | Josselin Didek"
+  description="Page About de Josselin Didek, développeur créatif orienté web interactif."
+  pageId="about"
+  namespace="about"
+  bodyClass="about-body"
+  mainClass="about-main"
+>
+  <section class="about-shell">
+    <aside class="about-toc" aria-label="Table des matières">
+      <a class="about-toc__item is-active" href="#about-me" data-target="about-me">[ 01 ABOUT ME ]</a>
+      <a class="about-toc__item" href="#what-i-do" data-target="what-i-do">[ 02 WHAT I DO ]</a>
+      <a class="about-toc__item" href="#work-philosophy" data-target="work-philosophy">[ 03 WORK PHILOSOPHY ]</a>
+      <a class="about-toc__item" href="#links" data-target="links">[ 04 LINKS ]</a>
+    </aside>
+
+    <div class="about-content">
+      <section class="about-section" id="about-me" data-section="about-me">
+        <h1 class="about-section__title">[ 01 ABOUT ME ]</h1>
+        <div class="about-section__text">
+          <p>
+            Bonjour, moi c'est Josselin. Je développe des expériences web interactives, avec un intérêt fort pour les interfaces
+            qui mêlent esthétique et technique.
+          </p>
+          <p>
+            Mon objectif est de transformer une direction artistique en expérience vivante: animation, micro-interactions, rendu
+            graphique temps réel, et ergonomie claire.
+          </p>
+          <p>
+            Côté perso, je nourris mon inspiration avec le design graphique, la musique électronique, le cinéma SF et les jeux
+            narratifs.
+          </p>
+        </div>
+        <div class="about-section__text about-section__text-en">
+          <p>
+            I'm a creative developer focused on interactive front-end experiences. I enjoy crafting interfaces where visual
+            direction and technical rigor meet.
+          </p>
+          <p>My workflow combines structure, animation, and realtime rendering to build clear, expressive digital products.</p>
+        </div>
+      </section>
+
+      <section class="about-section" id="what-i-do" data-section="what-i-do">
+        <h2 class="about-section__title">[ 02 WHAT I DO ]</h2>
+        <div class="about-section__text">
+          <p>
+            Je travaille principalement sur des sites vitrines premium, pages de campagne, portfolios interactifs et interfaces
+            orientées marque.
+          </p>
+          <p>
+            Stack habituelle: HTML/CSS/TypeScript, animations GSAP, et expériences visuelles avec Three.js/WebGL lorsque le projet
+            le justifie.
+          </p>
+          <p>J'interviens de la phase de prototypage jusqu'aux finitions: structure, performance, responsive, et polish visuel.</p>
+        </div>
+        <div class="about-section__text about-section__text-en">
+          <p>I build interactive brand websites, campaign pages, and portfolio experiences.</p>
+          <p>Typical tools: TypeScript, modern CSS, GSAP, and Three.js for immersive visuals.</p>
+          <p>From prototype to production, I focus on maintainability, performance, and motion quality.</p>
+        </div>
+      </section>
+
+      <section class="about-section" id="work-philosophy" data-section="work-philosophy">
+        <h2 class="about-section__title">[ 03 WORK PHILOSOPHY ]</h2>
+        <div class="about-section__text">
+          <p>Pour moi, une bonne interface ne cherche pas à impressionner en permanence. Elle guide, rassure, puis surprend au bon moment.</p>
+          <p>Je privilégie les systèmes visuels simples mais précis: hiérarchie typographique nette, rythme cohérent, feedback immédiat.</p>
+          <p>Chaque animation doit servir la compréhension ou l'émotion, jamais remplir l'espace gratuitement.</p>
+        </div>
+        <div class="about-section__text about-section__text-en">
+          <p>Great interfaces don't try to show everything at once. They prioritize clarity, then add emotion where it matters.</p>
+          <p>I care about systems: readable typography, predictable spacing, and purposeful motion.</p>
+        </div>
+      </section>
+
+      <section class="about-section" id="links" data-section="links">
+        <h2 class="about-section__title">[ 04 LINKS ]</h2>
+        <div class="about-links">
+          <a href="mailto:contact@didev.fr">contact@didev.fr</a>
+          <a href="https://github.com/JDIDEK" target="_blank" rel="noreferrer noopener">GitHub / JDIDEK</a>
+          <a href="#" aria-disabled="true">LinkedIn / coming soon</a>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <div class="fixed-scrollbar" id="fixed-scrollbar" slot="afterMain">
+    <label class="sr-only" for="fixed-scrollbar-range">Page scroll</label>
+    <input id="fixed-scrollbar-range" type="range" min="0" max="1000" value="0" />
+  </div>
+</SiteLayout>

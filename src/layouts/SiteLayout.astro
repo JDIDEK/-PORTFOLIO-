@@ -1,0 +1,117 @@
+---
+interface Props {
+  title: string;
+  pageId: 'home' | 'about' | 'works';
+  namespace?: string;
+  description?: string;
+  bodyClass?: string;
+  mainClass?: string;
+  showManualLink?: boolean;
+}
+
+const {
+  title,
+  pageId,
+  namespace = pageId,
+  description,
+  bodyClass,
+  mainClass,
+  showManualLink = false
+} = Astro.props;
+
+const navClass = (target: 'home' | 'about' | 'works'): string =>
+  `js-audio-hover${pageId === target ? ' active' : ''}`;
+---
+
+<!DOCTYPE html>
+<html lang="fr" data-page-id={pageId} data-loaded="0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100;8..144,200;8..144,300;8..144,400&display=swap"
+      rel="stylesheet"
+    />
+    <slot name="head" />
+  </head>
+
+  <body data-barba="wrapper" class={bodyClass}>
+    <div class="lLoading" id="jsLoading" aria-hidden="true">
+      <div class="lLoading__info">
+        <p translate="no" class="p1">
+          LOADING<br />
+          ----------------------------------------<br />
+          Loading environment...<br />
+          Transitioning to scene...
+        </p>
+        <p class="p2">
+          Assets : <span id="jsLoadCount">0</span> / <span id="jsLoadMax">1</span>
+        </p>
+        <div class="bar"><div class="bar__inner"><div class="progress" id="jsLoadProgress"></div></div></div>
+        <p class="p5" translate="no">_<br /></p>
+      </div>
+    </div>
+
+    <video
+      id="rain-video"
+      class="webgl-source-video"
+      src="/assets/webgl/texture/tNormal-Rain.mp4"
+      loop
+      muted
+      autoplay
+      playsinline
+    ></video>
+    <video
+      id="bg-video-1"
+      class="webgl-source-video"
+      src="/assets/video/bgVideoI.mp4"
+      loop
+      muted
+      autoplay
+      playsinline
+    ></video>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="ui-overlay">
+      <a href="/" class="logo" aria-label="Home">
+        <span class="logo-bracket">[</span>
+        <span class="logo-letter">J</span>
+        <span class="logo-cursor">_</span>
+        <span class="logo-bracket">]</span>
+      </a>
+
+      <nav class="side-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="/" class={navClass('home')}>HOME</a></li>
+          <li><a href="/about/" class={navClass('about')}>ABOUT</a></li>
+          <li><a href="/works/" class={navClass('works')}>WORKS</a></li>
+        </ul>
+      </nav>
+
+      <div class="bottom-left">
+        <button id="hand-toggle-btn" type="button" class="config-btn label-fx js-audio-hover">Hand: Off</button>
+        <button id="sound-toggle-btn" type="button" class="config-btn label-fx js-audio-hover">Sound: Off</button>
+      </div>
+
+      {showManualLink && (
+        <div class="bottom-right">
+          <button type="button" class="line-link label-fx js-audio-hover">How to Use Hand Mode ( EN )</button>
+        </div>
+      )}
+
+      <p class="copyright">© JOSSELINDIDEK</p>
+    </div>
+
+    <main class={mainClass} data-barba="container" data-barba-namespace={namespace}>
+      <slot />
+    </main>
+
+    <slot name="afterMain" />
+
+    <script src="../main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,78 @@
+---
+import '../styles/pages/home.css';
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout title="[ JOSSELINDIDEK ]" pageId="home" namespace="home" showManualLink={true}>
+  <div class="content">
+    <div class="hero">
+      <div class="hello-world">
+        <div class="word">
+          <img src="/letters/home_letter_h_01.svg" data-hover="/letters/home_letter_h_02.svg" alt="H" class="svg-letter h" />
+          <img src="/letters/home_letter_e_01.svg" data-hover="/letters/home_letter_e_02.svg" alt="E" class="svg-letter e" />
+          <img
+            src="/letters/home_letter_l1_01.svg"
+            data-hover="/letters/home_letter_l1_02.svg"
+            alt="L"
+            class="svg-letter l1"
+          />
+          <img
+            src="/letters/home_letter_l2_01.svg"
+            data-hover="/letters/home_letter_l2_02.svg"
+            alt="L"
+            class="svg-letter l2"
+          />
+          <img
+            src="/letters/home_letter_o1_01.svg"
+            data-hover="/letters/home_letter_o1_02.svg"
+            alt="O"
+            class="svg-letter o1"
+          />
+        </div>
+        <div class="word">
+          <img src="/letters/home_letter_w_01.svg" data-hover="/letters/home_letter_w_02.svg" alt="W" class="svg-letter w" />
+          <img
+            src="/letters/home_letter_o2_01.svg"
+            data-hover="/letters/home_letter_o2_02.svg"
+            alt="O"
+            class="svg-letter o2"
+          />
+          <img src="/letters/home_letter_r_01.svg" data-hover="/letters/home_letter_r_02.svg" alt="R" class="svg-letter r" />
+          <img
+            src="/letters/home_letter_l3_01.svg"
+            data-hover="/letters/home_letter_l3_02.svg"
+            alt="L"
+            class="svg-letter l3"
+          />
+          <img src="/letters/home_letter_d_01.svg" data-hover="/letters/home_letter_d_02.svg" alt="D" class="svg-letter d" />
+        </div>
+      </div>
+
+      <p class="hero-linux" id="open-terminal" title="Execute terminal">
+        <span class="term-user">root@josselin</span>:<span class="term-path">~/portfolio</span>#<span
+          class="term-cursor"
+          >_</span
+        >
+      </p>
+    </div>
+  </div>
+
+  <div class="terminal-overlay" id="terminal-modal" slot="afterMain">
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <span>root@josselin:~</span>
+        <button id="close-terminal" aria-label="Close terminal">×</button>
+      </div>
+      <div class="terminal-body" id="terminal-body">
+        <div class="terminal-history" id="terminal-history">
+          <p>Welcome to D1D35 v1.0.0</p>
+          <p>Type '<span class="t-warn">help</span>' to see available commands.</p>
+        </div>
+        <div class="terminal-input-line">
+          <span class="term-user">root@josselin</span>:<span class="term-path">~</span>#
+          <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+    </div>
+  </div>
+</SiteLayout>
