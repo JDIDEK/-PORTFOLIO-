@@ -2,7 +2,9 @@ export interface TerminalOptions {
   canPlayCrashTypingSound?: () => boolean;
 }
 
-export function initInteractiveTerminal(options: TerminalOptions = {}): void {
+export type TerminalCleanup = () => void;
+
+export function initInteractiveTerminal(options: TerminalOptions = {}): TerminalCleanup {
   const { canPlayCrashTypingSound = () => false } = options;
 
   const openTermBtn = document.getElementById('open-terminal');
@@ -24,7 +26,7 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
     !termHeader ||
     !termWindow
   ) {
-    return;
+    return () => {};
   }
 
   const terminalModalEl = terminalModal;
@@ -32,6 +34,7 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
   const cmdHistory: string[] = [];
   let historyIndex = -1;
   const terminalIntervals: number[] = [];
+  const terminalTimeouts: number[] = [];
   let neofetchCallCount = 0;
   const asciiFrameUrls = Array.from({ length: 51 }, (_, index) => {
     return `/assets/frames/frame_${String(index + 1).padStart(3, '0')}.txt`;
@@ -70,25 +73,51 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
   const knownCommands = ['help', 'ls', 'clear', 'whoami', 'sudo', 'cd', 'cat', 'neofetch', 'rm'];
   const knownFiles = ['about/', 'works/', 'contact.txt', 'matrix.sh'];
 
-  openTermBtn.addEventListener('click', () => {
+  const scheduleTimeout = (callback: () => void, delay: number): number => {
+    let timeoutId = 0;
+    timeoutId = window.setTimeout(() => {
+      const timeoutIndex = terminalTimeouts.indexOf(timeoutId);
+      if (timeoutIndex !== -1) {
+        terminalTimeouts.splice(timeoutIndex, 1);
+      }
+
+      callback();
+    }, delay);
+
+    terminalTimeouts.push(timeoutId);
+    return timeoutId;
+  };
+
+  const clearScheduledOperations = (): void => {
+    terminalIntervals.forEach(clearInterval);
+    terminalIntervals.length = 0;
+
+    terminalTimeouts.forEach(clearTimeout);
+    terminalTimeouts.length = 0;
+  };
+
+  const onOpenTerminal = (): void => {
     terminalModalEl.classList.add('active');
-    setTimeout(() => termInput.focus(), 100);
-  });
+    scheduleTimeout(() => termInput.focus(), 100);
+  };
+  openTermBtn.addEventListener('click', onOpenTerminal);
 
   const closeModal = () => {
     terminalModalEl.classList.remove('active');
-    terminalIntervals.forEach(clearInterval);
-    terminalIntervals.length = 0;
+    clearScheduledOperations();
   };
   closeTermBtn.addEventListener('click', closeModal);
 
-  termBody.addEventListener('click', () => termInput.focus());
+  const onTermBodyClick = (): void => {
+    termInput.focus();
+  };
+  termBody.addEventListener('click', onTermBodyClick);
 
   let isDragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
 
-  termHeader.addEventListener('mousedown', (e) => {
+  const onTermHeaderMouseDown = (e: MouseEvent): void => {
     if ((e.target as HTMLElement).id === 'close-terminal') return;
     isDragging = true;
     const rect = termWindow.getBoundingClientRect();
@@ -97,19 +126,22 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
     termWindow.style.transform = 'none';
     termWindow.style.left = `${rect.left}px`;
     termWindow.style.top = `${rect.top}px`;
-  });
+  };
+  termHeader.addEventListener('mousedown', onTermHeaderMouseDown);
 
-  document.addEventListener('mousemove', (e) => {
+  const onDocumentMouseMove = (e: MouseEvent): void => {
     if (!isDragging) return;
     termWindow.style.left = `${e.clientX - dragOffsetX}px`;
     termWindow.style.top = `${e.clientY - dragOffsetY}px`;
-  });
+  };
+  document.addEventListener('mousemove', onDocumentMouseMove);
 
-  document.addEventListener('mouseup', () => {
+  const onDocumentMouseUp = (): void => {
     isDragging = false;
-  });
+  };
+  document.addEventListener('mouseup', onDocumentMouseUp);
 
-  termInput.addEventListener('keydown', (e) => {
+  const onTermInputKeydown = (e: KeyboardEvent): void => {
     if (e.key === 'Tab') {
       e.preventDefault();
       const inputVal = termInput.value;
@@ -160,7 +192,9 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
       }
       termInput.value = '';
     }
-  });
+  };
+
+  termInput.addEventListener('keydown', onTermInputKeydown);
 
   function printLog(html: string) {
     const p = document.createElement('div');
@@ -226,7 +260,7 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
           const target = extraArgs[0].replace(/\/$/, '');
           if (['about', 'works'].includes(target)) {
             printLog(`Navigating to <span class="t-blue">${target}</span>...`);
-            setTimeout(() => {
+            scheduleTimeout(() => {
               closeModal();
             }, 800);
           } else {
@@ -268,7 +302,7 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
           </div>
         `);
 
-        setTimeout(() => {
+        scheduleTimeout(() => {
           const animTarget = document.getElementById(animId);
           if (animTarget) {
             void loadAsciiFrames().then((frames) => {
@@ -331,7 +365,7 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
 
               delay += 15;
               count++;
-              setTimeout(nukeSystem, delay);
+              scheduleTimeout(nukeSystem, delay);
             } else {
               printLog(
                 '<br/><span class="t-err" style="font-size: 1.1em; font-weight: bold;">Segmentation fault (core dumped)</span>'
@@ -340,7 +374,7 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
 
               termWindow.style.animation = 'neon-heavy-flicker 0.2s infinite';
 
-              setTimeout(() => {
+              scheduleTimeout(() => {
                 document.body.innerHTML = `
                   <div style="background:#000; color:#ccc; width:100vw; height:100vh; display:flex; flex-direction:column; padding: 20px; font-family: 'Courier New', monospace; box-sizing: border-box; margin: 0;">
                     <p>GRUB loading.</p>
@@ -373,11 +407,11 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
                     }
 
                     charIndex++;
-                    setTimeout(typeWriter, Math.random() * 100 + 50);
+                    scheduleTimeout(typeWriter, Math.random() * 100 + 50);
                   }
                 };
 
-                setTimeout(typeWriter, 1500);
+                scheduleTimeout(typeWriter, 1500);
               }, 2500);
             }
           };
@@ -392,4 +426,17 @@ export function initInteractiveTerminal(options: TerminalOptions = {}): void {
         printLog(`<span class="t-err">bash: ${cmd}: command not found</span>`);
     }
   }
+
+  return (): void => {
+    closeModal();
+    isDragging = false;
+
+    openTermBtn.removeEventListener('click', onOpenTerminal);
+    closeTermBtn.removeEventListener('click', closeModal);
+    termBody.removeEventListener('click', onTermBodyClick);
+    termHeader.removeEventListener('mousedown', onTermHeaderMouseDown);
+    termInput.removeEventListener('keydown', onTermInputKeydown);
+    document.removeEventListener('mousemove', onDocumentMouseMove);
+    document.removeEventListener('mouseup', onDocumentMouseUp);
+  };
 }

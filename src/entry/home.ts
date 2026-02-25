@@ -1,8 +1,8 @@
-import { initSharedExperience } from './shared';
+import type { SharedExperience } from './shared';
 import { initInteractiveTerminal } from '../features/terminal';
 
-const { audio } = initSharedExperience();
-
-initInteractiveTerminal({
-  canPlayCrashTypingSound: () => audio.isSoundEnabled() && audio.isAudioUnlocked()
-});
+export function initPage(shared: SharedExperience): () => void {
+  return initInteractiveTerminal({
+    canPlayCrashTypingSound: () => shared.audio.isSoundEnabled() && shared.audio.isAudioUnlocked()
+  });
+}

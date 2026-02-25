@@ -1,3 +1,3 @@
-import { initSharedExperience } from './shared';
+import type { SharedExperience } from './shared';
 
-initSharedExperience();
+export function initPage(_shared: SharedExperience): void {}

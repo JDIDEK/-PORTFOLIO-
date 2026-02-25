@@ -1,5 +1,6 @@
 import { initAboutSections } from '../features/about-sections';
-import { initSharedExperience } from './shared';
+import type { SharedExperience } from './shared';
 
-initSharedExperience();
-initAboutSections();
+export function initPage(_shared: SharedExperience): () => void {
+  return initAboutSections();
+}

@@ -97,20 +97,17 @@ const navClass = (target: 'home' | 'about' | 'works'): string =>
         <button id="sound-toggle-btn" type="button" class="config-btn label-fx js-audio-hover">Sound: Off</button>
       </div>
 
-      {showManualLink && (
-        <div class="bottom-right">
-          <button type="button" class="line-link label-fx js-audio-hover">How to Use Hand Mode ( EN )</button>
-        </div>
-      )}
+      <div class="bottom-right js-home-only" hidden={!showManualLink}>
+        <button type="button" class="line-link label-fx js-audio-hover">How to Use Hand Mode ( EN )</button>
+      </div>
 
       <p class="copyright">© JOSSELINDIDEK</p>
     </div>
 
     <main class={mainClass} data-barba="container" data-barba-namespace={namespace}>
       <slot />
+      <slot name="afterMain" />
     </main>
-
-    <slot name="afterMain" />
 
     <script src="../main.ts"></script>
   </body>

@@ -1,10 +1,12 @@
-export function initAboutSections(): void {
+export type CleanupFn = () => void;
+
+export function initAboutSections(): CleanupFn {
   const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.about-toc__item'));
   const sectionElements = Array.from(document.querySelectorAll<HTMLElement>('[data-section]'));
   const scrollbarRange = document.querySelector<HTMLInputElement>('#fixed-scrollbar-range');
 
   if (!tocLinks.length || !sectionElements.length) {
-    return;
+    return () => {};
   }
 
   const sectionById = new Map<string, HTMLElement>();
@@ -25,8 +27,9 @@ export function initAboutSections(): void {
     }
   };
 
+  const tocClickHandlers = new Map<HTMLAnchorElement, (event: Event) => void>();
   for (const link of tocLinks) {
-    link.addEventListener('click', (event) => {
+    const onClick = (event: Event): void => {
       event.preventDefault();
       const targetId = link.dataset.target;
       if (!targetId) return;
@@ -38,7 +41,10 @@ export function initAboutSections(): void {
         block: 'start'
       });
       setActiveToc(targetId);
-    });
+    };
+
+    tocClickHandlers.set(link, onClick);
+    link.addEventListener('click', onClick);
   }
 
   const observer = new IntersectionObserver(
@@ -69,6 +75,7 @@ export function initAboutSections(): void {
 
   setActiveToc(tocLinks[0].dataset.target ?? '');
 
+  let removeScrollBindings = (): void => {};
   if (scrollbarRange) {
     const setScrollbarValueFromScroll = (): void => {
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
@@ -97,5 +104,22 @@ export function initAboutSections(): void {
     window.addEventListener('scroll', setScrollbarValueFromScroll, { passive: true });
     window.addEventListener('resize', setScrollbarValueFromScroll);
     setScrollbarValueFromScroll();
+
+    removeScrollBindings = (): void => {
+      scrollbarRange.removeEventListener('input', scrollToRangePosition);
+      scrollbarRange.removeEventListener('change', scrollToRangePosition);
+      window.removeEventListener('scroll', setScrollbarValueFromScroll);
+      window.removeEventListener('resize', setScrollbarValueFromScroll);
+    };
   }
+
+  return (): void => {
+    observer.disconnect();
+
+    for (const [link, handler] of tocClickHandlers) {
+      link.removeEventListener('click', handler);
+    }
+
+    removeScrollBindings();
+  };
 }
